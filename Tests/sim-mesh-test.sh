@@ -25,8 +25,15 @@ i=0; for u in $POOL; do set -- $NAMES; shift $i; eval "U_$1=$u"; i=$((i+1)); don
 for n in $NAMES; do
   u=$(udid $n); echo "booting $n ($u)"
   t 60 xcrun simctl shutdown "$u" 2>/dev/null
-  t 120 xcrun simctl boot "$u" || echo "boot cmd returned non-zero for $n"
-  t 300 xcrun simctl bootstatus "$u" -b >/dev/null || { echo "$n never finished booting"; exit 1; }
+  booted=0
+  for attempt in 1 2; do
+    t 120 xcrun simctl boot "$u" || echo "boot cmd returned non-zero for $n"
+    if t 300 xcrun simctl bootstatus "$u" -b >/dev/null; then booted=1; break; fi
+    # Hosted macOS runners sometimes wedge a second simulator; wipe it and try once more.
+    echo "$n stuck booting (attempt $attempt), erasing and retrying"
+    t 60 xcrun simctl shutdown "$u" 2>/dev/null; t 120 xcrun simctl erase "$u" 2>/dev/null
+  done
+  [ "$booted" = 1 ] || { echo "$n never finished booting"; exit 1; }
   echo "$n booted"
 done
 echo "letting simulators settle"; sleep 45
