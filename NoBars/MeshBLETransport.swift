@@ -64,6 +64,11 @@ final class MeshBLETransport: NSObject {
     // MARK: Lifecycle
 
     func start() {
+        #if targetEnvironment(simulator)
+        // Simulators have no Bluetooth LE. Creating the managers there only
+        // raises a permission prompt that can stall automated launches.
+        return
+        #endif
         guard !isRunning else { return }
         isRunning = true
         if central == nil {
