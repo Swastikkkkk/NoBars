@@ -62,6 +62,8 @@ class MeshService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
             }
         engine.start()
+        // Nothing to run without Bluetooth; the app offers a Start button instead.
+        if (!engine.state.value.live) { stopSelf(); return START_NOT_STICKY }
         return START_STICKY
     }
 

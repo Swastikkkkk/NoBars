@@ -185,6 +185,14 @@ private fun Home(engine: MeshEngine, s: MeshState, permissionError: String?, onR
             IconButton(onClick = { showSettings = true }) { Icon(Icons.Filled.Settings, "Settings", tint = Color.White.copy(alpha = 0.7f)) }
         }
 
+        if (!s.live && permissionError == null) {
+            Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Card).padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Mesh is off. Turn on Bluetooth, then start it.", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = onRetryPermissions) { Text("Start") }
+            }
+        }
+
         permissionError?.let {
             Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Card).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically) {
@@ -207,7 +215,7 @@ private fun Home(engine: MeshEngine, s: MeshState, permissionError: String?, onR
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (s.messages.isEmpty()) item {
                 Text(if (s.live) "No messages yet. Say hi, it reaches everyone in range, hop by hop."
-                     else "Starting the mesh…",
+                     else "Messages show up here once the mesh is on.",
                     color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp, modifier = Modifier.padding(top = 40.dp).fillMaxWidth())
             }
             items(s.messages, key = { it.id }) { m -> MessageRow(m, mine = m.sender == s.name) }

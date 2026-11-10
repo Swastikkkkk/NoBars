@@ -124,7 +124,8 @@ class MeshEngine(private val context: Context) : BleTransport.Listener {
         if (_state.value.live) return
         ble.start()
         update { it.copy(live = ble.isRunning) }
-        note(if (ble.isRunning) "Mesh live as ${_state.value.name}" else "Couldn't start Bluetooth")
+        if (ble.isRunning) note("Mesh live as ${_state.value.name}")
+        else { note("Couldn't start Bluetooth"); flash("Turn on Bluetooth to join the mesh") }
     }
 
     fun stop() {
