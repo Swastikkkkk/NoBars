@@ -8,7 +8,7 @@ const faqs = [
   ["How far does it reach?", "Roughly 10 to 30 metres per phone over Bluetooth, more over peer-to-peer Wi-Fi, depending on walls and crowds. Each extra phone in between extends the reach, up to 10 hops."],
   ["Do I need to keep the app open?", "For the mesh to relay, yes. iOS pauses peer-to-peer connections in the background. SOS location sharing keeps running with the screen locked, but it only reaches people while you're connected."],
   ["Can I call someone far away through the mesh?", "Not yet. Voice and video calls work with anyone you're directly connected to. Chat, location and SOS travel across multiple hops."],
-  ["Is it private?", "Every link between phones is encrypted, and phones only join others using the same group code. Nothing goes through a server, because there isn't one. Leave the code blank to join the open mesh."],
+  ["Is it private?", "Your group code never leaves your phone. Every message, location and SOS is encrypted with a key made from it and signed by the phone that sent it, so outsiders can't read anything and nobody can post under your name. Nothing goes through a server, because there isn't one. Use a long code for anything private, or leave it blank to join the open mesh."],
   ["Does it drain my battery?", "Less than streaming video. Bluetooth and Wi-Fi radios stay active while the app is open, and SOS uses GPS, so expect more drain than usual during long sessions."],
   ["Does it cost anything?", "No. It's free, and the code is public on GitHub."],
 ]

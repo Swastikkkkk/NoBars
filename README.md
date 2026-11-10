@@ -1,6 +1,8 @@
 # NoBars
 
 [![Build](https://github.com/Swastikkkkk/NoBars/actions/workflows/build.yml/badge.svg)](https://github.com/Swastikkkkk/NoBars/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/Swastikkkkk/NoBars)](https://github.com/Swastikkkkk/NoBars/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Website:** https://swastikkkkk.github.io/NoBars/
 
@@ -8,16 +10,25 @@ Offline peer-to-peer mesh for iPhone. Phones find each other over Bluetooth and 
 
 No internet, no cell signal, no server. Built for places where networks fall over: concerts, festivals, treks, disaster zones.
 
+<p align="center">
+  <img src="site/public/shots/onboarding.webp" width="19%" alt="Join a group">
+  <img src="site/public/shots/home.webp" width="19%" alt="Mesh home">
+  <img src="site/public/shots/chat.webp" width="19%" alt="Multi-hop chat">
+  <img src="site/public/shots/map.webp" width="19%" alt="Buddy map">
+  <img src="site/public/shots/sos.webp" width="19%" alt="SOS">
+</p>
+
 ## What it does
 
 | Feature | How it works |
 |---|---|
 | **Multi-hop chat** | Every packet carries a TTL of 10. Each phone re-sends it to its neighbours except the one it came from, so a message reaches people far outside the sender's range. A seen-packet cache drops loops and duplicates, so everyone gets it exactly once. |
-| **Store and forward** | Send with nobody around and the message is queued, then delivered the moment a buddy connects. |
+| **Store and forward** | Send with nobody around and the message is queued, then delivered the moment a buddy connects. Queued messages and chat history are saved on the phone, so closing the app loses nothing. |
 | **SOS** | One tap floods your live location to the whole group every 5 seconds, even with the screen locked. Buddies get an alert, a red pin and a compass pointing at you. Stopping SOS sends an all-clear. |
 | **Buddy map and compass** | Bearing and distance to every buddy who is sharing location. |
 | **Voice and video calls** | Raw PCM audio and JPEG video frames over `MCSession` byte streams, one per direction. No WebRTC, no signalling server. Calls work with buddies you're directly connected to. |
-| **Private groups** | Phones only connect when their group codes match. Both the browser and the invited phone check the code. |
+| **Private groups** | Phones only connect when their group codes match. The code itself is never broadcast, and every packet is encrypted with a key derived from it (see [Security](#security)). |
+| **Signed identities** | Each phone has its own signing key. Buddies pin it the first time they meet, so nobody can send chat or a fake SOS under your name. |
 | **Auto reconnect** | If a buddy drops and comes back into range, the app re-scans and reconnects on its own. |
 | **System integration** | Live Activity and Dynamic Island, a Mesh Status widget, a Control Center SOS button, and Siri / Shortcuts actions. |
 
@@ -45,13 +56,13 @@ You need **at least two iPhones on iOS 26 or later**. The simulator has no Bluet
    ```bash
    git clone https://github.com/Swastikkkkk/NoBars.git
    cd NoBars
-   open DistrictMesh.xcodeproj
+   open NoBars.xcodeproj
    ```
-3. Select the **DistrictMesh** target, go to **Signing & Capabilities** and pick your team. Do the same for the **WidgetExtension** target.
+3. Select the **NoBars** target, go to **Signing & Capabilities** and pick your team. Do the same for the **WidgetExtension** target.
 4. If you're not on the original developer team, change the bundle IDs so they're unique to you:
-   - `com.swastik.districtmesh` on DistrictMesh
-   - `com.swastik.districtmesh.Widget` on WidgetExtension (must start with the app's ID)
-   - the App Group `group.com.swastik.districtmesh` on both targets, plus the same string in `DistrictMesh/SharedStore.swift` and `Widget/Widget.swift`
+   - `com.swastik.nobars` on NoBars
+   - `com.swastik.nobars.Widget` on WidgetExtension (must start with the app's ID)
+   - the App Group `group.com.swastik.nobars` on both targets, plus the same string in `NoBars/SharedStore.swift` and `Widget/Widget.swift`
 5. Plug in an iPhone, pick it as the run destination, press **Run**. On the phone, trust the developer under **Settings > General > VPN & Device Management** the first time.
 6. Repeat on the second phone.
 
@@ -59,9 +70,9 @@ You need **at least two iPhones on iOS 26 or later**. The simulator has no Bluet
 
 ### Option B: no Mac (Windows or Linux)
 
-Every push builds an unsigned IPA on GitHub Actions.
+Every release ships an unsigned IPA.
 
-1. Open the newest green run under [Actions](https://github.com/Swastikkkkk/NoBars/actions/workflows/build.yml) (sign in to GitHub), scroll to **Artifacts** and download `NoBars-unsigned-ipa`. Unzip it to get `NoBars-unsigned.ipa`.
+1. Download `NoBars-unsigned.ipa` from the [latest release](https://github.com/Swastikkkkk/NoBars/releases/latest). (Every push also builds one under [Actions](https://github.com/Swastikkkkk/NoBars/actions/workflows/build.yml) > Artifacts if you want the newest commit.)
 2. Install [Sideloadly](https://sideloadly.io) or AltStore, connect your iPhone, drop in the IPA and sign in with your Apple ID.
 3. On the phone, trust the developer under **Settings > General > VPN & Device Management**.
 
@@ -100,6 +111,18 @@ Settings > Diagnostics shows a live log of discovery, invites and connections if
 - **Live Activity:** shows your nearest buddy and distance on the Lock Screen and Dynamic Island while the mesh is live.
 - Deep links: `nobars://sos` and `nobars://open`.
 
+## Security
+
+| Threat | What stops it |
+|---|---|
+| Someone nearby reading your group code off Bluetooth | Phones advertise a one-way tag of the code (SHA-256 stretched 50,000 rounds, then HKDF and HMAC), never the code. |
+| A phone that copies the tag and connects | Every packet is sealed with ChaCha20-Poly1305 under a key derived from the code. Right after linking, both phones swap an encrypted, signed hello. A phone that can't produce one is dropped within 10 seconds, before it can chat, see locations or call. |
+| A group member sending as someone else, or faking an SOS | Each phone signs every packet with its own Curve25519 key, stored in the Keychain. The first key seen for a name is pinned. A different key for that name is rejected. |
+| A relay editing a message or SOS in transit | The signature covers everything but the hop counter, and the encryption is authenticated. Any change is rejected. |
+| Replaying old location or SOS packets | Location and hello packets older than 10 minutes are dropped, and every packet id is only accepted once. |
+
+What it doesn't do: everyone with the group code can read the group's chat, since it's a group chat. Use a long, unguessable code for anything private, because a short one can be guessed from the tag offline. If a friend reinstalls the app their key changes, so tap **Settings > Reset trusted buddies**. Settings also shows your key fingerprint so you can compare in person.
+
 ## Limits to know
 
 - **Keep the app open.** iOS suspends MultipeerConnectivity in the background, so the mesh only relays while the app is in the foreground. SOS location sharing keeps running with the screen locked, but it only reaches buddies while links are up.
@@ -114,6 +137,7 @@ Settings > Diagnostics shows a live log of discovery, invites and connections if
 |---|---|
 | Discovery and transport | MultipeerConnectivity (Bluetooth + peer-to-peer Wi-Fi), encryption required |
 | Packets and routing | Codable `MeshRelayPacket` (stable `id`, `ttl`, `kind`), `MeshRouter` for dedupe and forwarding |
+| Security | CryptoKit: ChaCha20-Poly1305, Curve25519 signatures, HKDF, Keychain |
 | Calls | AVAudioEngine and AVCapture over `MCSession` streams |
 | Location | CoreLocation, MapKit |
 | System | ActivityKit, WidgetKit, ControlWidget, App Intents |
@@ -122,24 +146,32 @@ Settings > Diagnostics shows a live log of discovery, invites and connections if
 ## Project structure
 
 ```
-DistrictMesh/
+NoBars/
   ViewModels/MeshConnectivityManager.swift   discovery, sessions, relay, outbox, SOS, reconnect
   Models/MeshRelayPacket.swift               packet, seen cache, router
+  Models/MeshCrypto.swift                    group keys, sealing, signatures, key pinning
+  MeshIdentity.swift                         this phone's signing key (Keychain)
+  ChatStore.swift                            chat history and queued messages on disk
   MeshVoiceCallManager.swift                 voice and video calls
   LiveActivityController.swift               Live Activity and Dynamic Island
   AppIntents.swift                           Siri and Shortcuts actions
   SharedStore.swift                          App Group data for the widget
   Views/                                     dashboard, chat, map, compass, call, onboarding
 Widget/                                      Mesh Status widget, SOS control, Live Activity UI
+Tests/MeshCoreTests/                         unit tests for routing and crypto (swift test, runs in CI)
 Tests/RelaySimulation/                       multi-hop relay simulation (runs in CI)
 Tests/sim-mesh-test.sh                       two-simulator end-to-end mesh test (runs in CI)
 .github/workflows/build.yml                  builds the app, runs the simulation, packages the IPA
 ```
 
-Run the relay simulation yourself on a Mac:
+Run the unit tests and the relay simulation yourself on a Mac:
 
 ```bash
-xcrun swiftc DistrictMesh/Models/MeshRelayPacket.swift Tests/RelaySimulation/main.swift -o relay-sim && ./relay-sim
+swift test
+```
+
+```bash
+xcrun swiftc NoBars/Models/MeshRelayPacket.swift Tests/RelaySimulation/main.swift -o relay-sim && ./relay-sim
 ```
 
 ## Troubleshooting
@@ -149,3 +181,7 @@ xcrun swiftc DistrictMesh/Models/MeshRelayPacket.swift Tests/RelaySimulation/mai
 - **No audio in a call:** allow Microphone in Settings > NoBars.
 - **Widget shows 0 or nothing:** you're on a free team without App Groups, or the app hasn't been opened since install.
 - **Live Activity missing:** Settings > NoBars > Live Activities must be on.
+
+## License
+
+[MIT](LICENSE)

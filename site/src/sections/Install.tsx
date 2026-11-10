@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { LuLaptop, LuMonitorSmartphone, LuExternalLink } from "react-icons/lu"
 import { Section } from "@/components/Section"
-import { ACTIONS, REPO } from "@/lib/site"
+import { RELEASES, REPO } from "@/lib/site"
 import { cn } from "@/lib/utils"
 
 type Step = { title: string; body: React.ReactNode }
@@ -12,7 +12,7 @@ const link = (href: string, t: string) => (
 )
 
 const noMac: Step[] = [
-  { title: "Download the app file", body: <>Open the latest green build on {link(ACTIONS, "GitHub Actions")} (you'll need to be signed in to GitHub). Under <b className="text-white/80">Artifacts</b>, download {code("NoBars-unsigned-ipa")} and unzip it.</> },
+  { title: "Download the app file", body: <>Download {code("NoBars-unsigned.ipa")} from the {link(RELEASES, "latest release")} on GitHub.</> },
   { title: "Install Sideloadly", body: <>Get {link("https://sideloadly.io", "Sideloadly")} for Windows or macOS (AltStore works too). Plug in your iPhone with a cable.</> },
   { title: "Sign and install", body: <>Drop the {code(".ipa")} into Sideloadly, sign in with your Apple ID and hit Start. Your Apple ID is only used to sign the app for your own phone.</> },
   { title: "Trust it on your iPhone", body: <>Go to <b className="text-white/80">Settings › General › VPN &amp; Device Management</b> and trust your Apple ID. With a free Apple ID you'll need to reinstall every 7 days.</> },
@@ -20,7 +20,7 @@ const noMac: Step[] = [
 
 const mac: Step[] = [
   { title: "Get Xcode 26", body: <>Install Xcode 26 or newer from the Mac App Store.</> },
-  { title: "Clone and open", body: <>{code(`git clone ${REPO}.git`)} then open {code("DistrictMesh.xcodeproj")}.</> },
+  { title: "Clone and open", body: <>{code(`git clone ${REPO}.git`)} then open {code("NoBars.xcodeproj")}.</> },
   { title: "Set your team", body: <>Under <b className="text-white/80">Signing &amp; Capabilities</b>, pick your team for both the app and widget targets. If the bundle ID is taken, change it to something unique.</> },
   { title: "Run on your iPhone", body: <>Plug in your phone, pick it as the destination and press Run. On a free Apple ID, remove the App Groups capability; only the widget needs it.</> },
 ]
