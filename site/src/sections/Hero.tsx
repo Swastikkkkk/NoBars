@@ -40,7 +40,7 @@ export function Hero() {
           trigger="load"
         />
         <p className="hero-fade mt-6 max-w-xl text-[18px] leading-relaxed text-white/60">
-          NoBars links iPhones over Bluetooth and peer-to-peer Wi-Fi into a mesh that passes messages from phone to phone.
+          NoBars links iPhones and Android phones over Bluetooth and peer-to-peer Wi-Fi into a mesh that passes messages from phone to phone.
           Chat, share live location, send SOS and call your crew with zero bars, no internet and no server.
         </p>
         <div className="hero-fade mt-7 flex flex-wrap items-center gap-3">
@@ -51,7 +51,7 @@ export function Hero() {
             <LuGithub className="h-4 w-4" /> Source code
           </a>
         </div>
-        <p className="hero-fade mt-6 text-[13px] text-white/40">iOS 26 or later · Needs 2+ iPhones · Not on the App Store yet</p>
+        <p className="hero-fade mt-6 text-[13px] text-white/40">iPhone (iOS 26+) and Android 10+ · Needs 2+ phones · Free and open source</p>
       </div>
 
       <div className="relative mx-auto flex h-[560px] w-full max-w-[420px] items-center justify-center sm:h-[640px]">

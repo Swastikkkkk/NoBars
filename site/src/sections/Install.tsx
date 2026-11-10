@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { LuLaptop, LuMonitorSmartphone, LuExternalLink } from "react-icons/lu"
+import { LuLaptop, LuMonitorSmartphone, LuExternalLink, LuSmartphone } from "react-icons/lu"
 import { Section } from "@/components/Section"
 import { RELEASES, REPO } from "@/lib/site"
 import { cn } from "@/lib/utils"
@@ -18,6 +18,13 @@ const noMac: Step[] = [
   { title: "Trust it on your iPhone", body: <>Go to <b className="text-white/80">Settings › General › VPN &amp; Device Management</b> and trust your Apple ID. With a free Apple ID you'll need to reinstall every 7 days.</> },
 ]
 
+const android: Step[] = [
+  { title: "Download the APK", body: <>On your Android phone, download {code("NoBars.apk")} from the {link(RELEASES, "latest release")} on GitHub.</> },
+  { title: "Install it", body: <>Open the file. If Android asks, allow your browser to install unknown apps, then tap Install.</> },
+  { title: "Allow access", body: <>Allow <b className="text-white/80">Nearby devices</b>, <b className="text-white/80">Location</b> and <b className="text-white/80">Notifications</b>. A "mesh is live" notification means it's running.</> },
+  { title: "Keep it running", body: <>Some phones close background apps. In NoBars' app info, set battery usage to <b className="text-white/80">Unrestricted</b> so it keeps relaying in your pocket.</> },
+]
+
 const mac: Step[] = [
   { title: "Get Xcode 26", body: <>Install Xcode 26 or newer from the Mac App Store.</> },
   { title: "Clone and open", body: <>{code(`git clone ${REPO}.git`)} then open {code("NoBars.xcodeproj")}.</> },
@@ -26,9 +33,9 @@ const mac: Step[] = [
 ]
 
 const firstRun: Step[] = [
-  { title: "Install on 2+ iPhones", body: "The mesh needs at least two phones. Three or more lets you see multi-hop relaying in action." },
+  { title: "Install on 2+ phones", body: "Any mix of iPhones and Android phones. Three or more lets you see multi-hop relaying in action." },
   { title: "Same group code", body: "Open NoBars on each phone, enter a name and the same group code (anything, like fest24)." },
-  { title: "Allow access", body: "Allow Local Network, Location and Microphone. Without Local Network, phones can't see each other." },
+  { title: "Allow access", body: "On iPhone allow Local Network, Bluetooth, Location, Microphone and Notifications. On Android allow Nearby devices, Location and Notifications." },
   { title: "Go offline", body: "Turn off Mobile Data and disconnect from Wi-Fi, keeping Bluetooth on. Your crew shows up in seconds." },
 ]
 
@@ -49,12 +56,12 @@ function Steps({ steps }: { steps: Step[] }) {
 }
 
 export function Install() {
-  const [tab, setTab] = useState<"pc" | "mac">("pc")
+  const [tab, setTab] = useState<"android" | "pc" | "mac">("android")
   return (
-    <Section id="install" eyebrow="Install" title="Get it on your iPhone."
-      intro="NoBars isn't on the App Store yet, so for now you install it yourself. It takes about ten minutes, and you don't need a Mac.">
+    <Section id="install" eyebrow="Install" title="Get it on your phone."
+      intro="NoBars isn't in the app stores yet, so you install it yourself. On Android it's one file. On iPhone it takes about ten minutes, and you don't need a Mac.">
       <div className="reveal inline-flex rounded-full border border-line bg-surface p-1">
-        {([["pc", "Without a Mac", LuMonitorSmartphone], ["mac", "With a Mac", LuLaptop]] as const).map(([k, l, Icon]) => (
+        {([["android", "Android", LuSmartphone], ["pc", "iPhone", LuMonitorSmartphone], ["mac", "iPhone + Mac", LuLaptop]] as const).map(([k, l, Icon]) => (
           <button key={k} onClick={() => setTab(k)}
             className={cn("flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-medium transition",
               tab === k ? "bg-white text-black" : "text-white/60 hover:text-white")}>
@@ -62,7 +69,7 @@ export function Install() {
           </button>
         ))}
       </div>
-      <div className="mt-6"><Steps steps={tab === "pc" ? noMac : mac} /></div>
+      <div className="mt-6"><Steps steps={tab === "android" ? android : tab === "pc" ? noMac : mac} /></div>
 
       <h3 className="reveal mt-12 text-[22px] font-semibold tracking-tight">Then, first run</h3>
       <div className="mt-6"><Steps steps={firstRun} /></div>

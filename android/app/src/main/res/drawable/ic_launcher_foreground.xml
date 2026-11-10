@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Three linked nodes: the mesh. -->
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M38,66 L54,40 L70,66 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M54,40m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#FFFFFF" android:pathData="M38,66m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+    <path android:fillColor="#FFFFFF" android:pathData="M70,66m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+</vector>

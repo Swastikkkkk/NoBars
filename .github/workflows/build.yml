@@ -121,7 +121,15 @@ jobs:
         run: ./gradlew :core:test --no-daemon
       - name: Build APK
         if: hashFiles('android/app/build.gradle.kts') != ''
-        run: ./gradlew :app:assembleRelease --no-daemon
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          fi
+          ./gradlew :app:assembleRelease --no-daemon
       - name: Rename APK
         if: hashFiles('android/app/build.gradle.kts') != ''
         run: cp app/build/outputs/apk/release/app-release.apk NoBars.apk
