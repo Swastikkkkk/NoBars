@@ -32,13 +32,24 @@ final class MeshVoiceCallManager {
 
     /// Mute our microphone without ending the call.
     var isMuted = false {
-        didSet { bridge?.setMuted(isMuted) }
+        didSet { bridge?.setMuted(isMuted); relayAudio?.setMuted(isMuted) }
     }
 
     /// Route audio out of the loudspeaker (on) vs. the earpiece (off).
     var isSpeakerOn = true {
-        didSet { bridge?.setSpeaker(isSpeakerOn) }
+        didSet { bridge?.setSpeaker(isSpeakerOn); relayAudio?.setSpeaker(isSpeakerOn) }
     }
+
+    /// True when the call hops through other phones instead of a direct link.
+    /// Relayed calls are audio only.
+    private(set) var isRelayCall = false
+
+    /// Set by the mesh manager: sends one encoded audio chunk to `activePeer`.
+    @ObservationIgnored var sendRelayAudio: ((Data, Int) -> Void)?
+    /// Set by the mesh manager: tells the other side a relayed call ended.
+    @ObservationIgnored var sendRelayEnd: ((String) -> Void)?
+    @ObservationIgnored private var relayAudio: RelayCallAudio?
+    @ObservationIgnored private var relaySeq = 0
 
     /// Whether our camera is on and streaming.
     private(set) var isVideoOn = false
@@ -99,12 +110,40 @@ final class MeshVoiceCallManager {
     // MARK: Video controls
 
     func toggleVideo() {
+        guard !isRelayCall else { return }
         isVideoOn ? stopVideo() : startVideo()
     }
 
     /// Turns video on if it isn't already (used to start a call as video).
     func enableVideo() {
+        guard !isRelayCall else { return }
         if !isVideoOn { startVideo() }
+    }
+
+    // MARK: Relayed calls
+
+    /// Starts (or answers) a call that hops through other phones.
+    func startRelayCall(with name: String) {
+        guard activePeer == nil else { return }
+        callLog.info("relay call with \(name, privacy: .public)")
+        AudioBridge.prewarmMic()
+        activePeer = name
+        isRelayCall = true
+        relaySeq = 0
+        let audio = RelayCallAudio { [weak self] chunk in
+            Task { @MainActor in
+                guard let self, self.isRelayCall else { return }
+                self.relaySeq += 1
+                self.sendRelayAudio?(chunk, self.relaySeq)
+            }
+        }
+        relayAudio = audio
+        audio.setMuted(isMuted)
+        audio.start(speaker: isSpeakerOn)
+    }
+
+    func playRelay(_ audio: Data, seq: Int) {
+        relayAudio?.play(audio, seq: seq)
     }
 
     func flipCamera() {
@@ -125,7 +164,13 @@ final class MeshVoiceCallManager {
         localFrame = nil
     }
 
-    func endCall() {
+    func endCall(notifyRemote: Bool = true) {
+        if isRelayCall {
+            relayAudio?.stop()
+            relayAudio = nil
+            isRelayCall = false
+            if notifyRemote, let peer = activePeer { sendRelayEnd?(peer) }
+        }
         bridge?.stop()
         bridge = nil
         videoBridge?.stop()

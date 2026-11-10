@@ -27,6 +27,10 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>NoBars uses Bluetooth to reach nearby phones, including Android, and keeps relaying messages and SOS while the app is in the background.</string>
 </dict>
 </plist>

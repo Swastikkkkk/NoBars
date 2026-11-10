@@ -12,7 +12,7 @@ let package = Package(
         .target(
             name: "MeshCore",
             path: "NoBars/Models",
-            sources: ["MeshRelayPacket.swift", "MeshCrypto.swift"]
+            sources: ["MeshRelayPacket.swift", "MeshCrypto.swift", "BLEFraming.swift"]
         ),
         .testTarget(
             name: "MeshCoreTests",

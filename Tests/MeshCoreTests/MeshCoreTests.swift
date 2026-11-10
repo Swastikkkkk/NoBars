@@ -164,3 +164,110 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(Array(delivered.dropFirst()), Array(repeating: 1, count: n - 1))
     }
 }
+
+/// Checks the Swift implementation against protocol/vectors.json, which the
+/// Android app is tested against too. If these pass on both sides, iPhones
+/// and Android phones agree on keys, encryption and signatures.
+final class CrossPlatformVectorTests: XCTestCase {
+    struct Vectors: Decodable {
+        struct Group: Decodable { let code: String; let tag: String; let key: String }
+        struct Sealed: Decodable { let signingBytes: String; let sealed: String }
+        let groups: [Group]
+        let sealedWithGroup: String
+        let packets: [Sealed]
+    }
+
+    func load() throws -> (Vectors, [[String: Any]], [String: Any]) {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("protocol/vectors.json")
+        let data = try Data(contentsOf: url)
+        let raw = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let packets = try XCTUnwrap(raw["packets"] as? [[String: Any]]).compactMap { $0["packet"] as? [String: Any] }
+        let bad = try XCTUnwrap(raw["badSignature"] as? [String: Any])
+        return (try JSONDecoder().decode(Vectors.self, from: data), packets, bad)
+    }
+
+    func hex(_ data: some DataProtocol) -> String { data.map { String(format: "%02x", $0) }.joined() }
+    func unhex(_ s: String) -> Data {
+        var d = Data(); var i = s.startIndex
+        while i < s.endIndex { let j = s.index(i, offsetBy: 2); d.append(UInt8(s[i..<j], radix: 16)!); i = j }
+        return d
+    }
+    func packet(_ dict: [String: Any]) throws -> MeshRelayPacket {
+        try JSONDecoder().decode(MeshRelayPacket.self, from: JSONSerialization.data(withJSONObject: dict))
+    }
+
+    func testGroupKeysMatch() throws {
+        let (v, _, _) = try load()
+        for g in v.groups {
+            let keys = GroupKeys(code: g.code)
+            XCTAssertEqual(keys.discoveryTag, g.tag, "tag for \(g.code)")
+            XCTAssertEqual(keys.key.withUnsafeBytes { hex($0) }, g.key, "key for \(g.code)")
+        }
+    }
+
+    func testOpensAndVerifiesReferencePackets() throws {
+        let (v, dicts, _) = try load()
+        let key = GroupKeys(code: v.sealedWithGroup).key
+        for (vec, dict) in zip(v.packets, dicts) {
+            let opened = try XCTUnwrap(MeshCrypto.open(unhex(vec.sealed), with: key))
+            XCTAssertTrue(MeshCrypto.verify(opened), "signature for \(opened.kind)")
+            XCTAssertEqual(hex(MeshCrypto.signingBytes(opened)), vec.signingBytes)
+            XCTAssertEqual(opened.id.uuidString, dict["id"] as? String)
+            XCTAssertEqual(opened.senderName, dict["senderName"] as? String)
+            XCTAssertEqual(hex(MeshCrypto.signingBytes(try packet(dict))), vec.signingBytes)
+        }
+    }
+
+    /// Packets sealed and signed by the Android app's Kotlin code.
+    func testOpensAndVerifiesAndroidPackets() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("protocol/vectors-android.json")
+        struct AndroidVectors: Decodable {
+            struct P: Decodable { let id: String; let kind: String; let signingBytes: String; let sealed: String }
+            let group: String; let packets: [P]
+        }
+        let v = try JSONDecoder().decode(AndroidVectors.self, from: Data(contentsOf: url))
+        let key = GroupKeys(code: v.group).key
+        XCTAssertEqual(v.packets.count, 5)
+        for p in v.packets {
+            let opened = try XCTUnwrap(MeshCrypto.open(unhex(p.sealed), with: key), "open \(p.kind)")
+            XCTAssertEqual(opened.id.uuidString, p.id)
+            XCTAssertEqual(opened.kind.rawValue, p.kind)
+            XCTAssertTrue(MeshCrypto.verify(opened), "verify \(p.kind)")
+            XCTAssertEqual(hex(MeshCrypto.signingBytes(opened)), p.signingBytes)
+        }
+    }
+
+    func testRejectsTamperedReferencePacket() throws {
+        let (_, _, bad) = try load()
+        XCTAssertFalse(MeshCrypto.verify(try packet(bad)))
+    }
+}
+
+final class BLEFramingTests: XCTestCase {
+    func testRoundTripOutOfOrder() {
+        let msg = Data((0..<1000).map { UInt8($0 & 0xFF) })
+        let frames = BLEFraming.split(msg, seq: 42, maxFrame: 182)
+        XCTAssertGreaterThan(frames.count, 1)
+        XCTAssertTrue(frames.allSatisfy { $0.count <= 182 })
+        var r = BLEFraming.Reassembler()
+        let results = frames.reversed().map { r.accept($0) }
+        XCTAssertEqual(results.last!, msg)
+        XCTAssertTrue(results.dropLast().allSatisfy { $0 == nil })
+    }
+
+    /// Byte layout must match the Android framer exactly.
+    func testHeaderLayout() {
+        let frame = BLEFraming.split(Data([0xAB]), seq: 0x01020304, maxFrame: 20)[0]
+        XCTAssertEqual([UInt8](frame), [1, 1, 2, 3, 4, 0, 1, 0xAB])
+    }
+
+    func testIgnoresGarbage() {
+        var r = BLEFraming.Reassembler()
+        XCTAssertNil(r.accept(Data([9, 9, 9])))
+        XCTAssertNil(r.accept(Data([2, 0, 0, 0, 1, 0, 1, 5])))
+    }
+}

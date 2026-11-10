@@ -22,3 +22,13 @@ Carthage/Build/
 # Fastlane
 fastlane/report.xml
 fastlane/screenshots
+
+# Python
+__pycache__/
+
+# Android / Gradle
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
+*.apk

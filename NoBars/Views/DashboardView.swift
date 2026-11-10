@@ -100,7 +100,7 @@ private struct HomeTab: View {
 
                     VStack(spacing: 14) {
                         if mesh.isLive && mesh.connectedPeers.isEmpty { inviteCard }
-                        if !mesh.connectedPeers.isEmpty { peopleStrip }
+                        if !mesh.connectedPeers.isEmpty || !mesh.meshBuddies.isEmpty { peopleStrip }
                         chatSection
                         toolsGrid
                     }
@@ -358,7 +358,7 @@ private struct HomeTab: View {
                     .foregroundStyle(.white.opacity(0.35))
                     .tracking(1)
                 Spacer()
-                Text("\(mesh.connectedPeers.count) online")
+                Text(mesh.meshBuddies.isEmpty ? "\(mesh.connectedPeers.count) online" : "\(mesh.connectedPeers.count) nearby \u{00B7} \(mesh.meshBuddies.count) via mesh")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.green)
             }
@@ -368,6 +368,9 @@ private struct HomeTab: View {
                 HStack(spacing: 10) {
                     ForEach(mesh.connectedPeers, id: \.self) { peer in
                         PeerChip(mesh: mesh, name: peer, onMessage: { selectedTab = 1 })
+                    }
+                    ForEach(mesh.meshBuddies, id: \.self) { peer in
+                        PeerChip(mesh: mesh, name: peer, viaMesh: true, onMessage: { selectedTab = 1 })
                     }
                 }
                 .padding(.horizontal, 2)
@@ -551,6 +554,8 @@ private struct ScanningRing: View {
 private struct PeerChip: View {
     let mesh: MeshConnectivityManager
     let name: String
+    /// Reached through other phones rather than a direct link.
+    var viaMesh = false
     let onMessage: () -> Void
 
     private var firstName: String {
@@ -573,15 +578,24 @@ private struct PeerChip: View {
                 }
             }
 
-            Text(firstName)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.65))
-                .lineLimit(1)
+            VStack(spacing: 2) {
+                Text(firstName)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1)
+                if viaMesh {
+                    Text("via mesh")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+            }
 
             HStack(spacing: 6) {
                 chipButton("message.fill") { onMessage() }
                 chipButton("phone.fill") { mesh.startCall(with: name) }
-                chipButton("video.fill") { mesh.startCall(with: name, video: true) }
+                if !viaMesh {
+                    chipButton("video.fill") { mesh.startCall(with: name, video: true) }
+                }
             }
         }
         .padding(.vertical, 14)

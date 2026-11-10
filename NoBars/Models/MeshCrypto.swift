@@ -76,6 +76,9 @@ nonisolated enum MeshCrypto {
             bits(p.longitude),
             p.isEmergency.map { $0 ? "1" : "0" } ?? "-",
             p.senderKey?.base64EncodedString() ?? "-",
+            p.to ?? "-",
+            p.seq.map(String.init) ?? "-",
+            p.audio?.base64EncodedString() ?? "-",
         ]
         var data = Data()
         for f in fields {

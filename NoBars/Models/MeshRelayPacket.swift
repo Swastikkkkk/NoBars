@@ -16,6 +16,10 @@ nonisolated struct MeshRelayPacket: Codable, Identifiable, Sendable {
         /// Sent once to each direct neighbour right after connecting. Proves the
         /// neighbour knows the group key and pins its signing key. Never relayed.
         case hello
+        /// Relayed call signalling. `text` is "invite" or "end", `to` the callee.
+        case call
+        /// One chunk of relayed call audio (8 kHz mu-law) for `to`.
+        case voice
     }
 
     let id: UUID
@@ -34,6 +38,12 @@ nonisolated struct MeshRelayPacket: Codable, Identifiable, Sendable {
     var senderKey: Data?
     var signature: Data?
 
+    /// Addressee for calls; relays forward but don't deliver.
+    var to: String?
+    /// Audio chunk order for `.voice`.
+    var seq: Int?
+    var audio: Data?
+
     static let defaultTTL = 10
 
     init(
@@ -44,6 +54,9 @@ nonisolated struct MeshRelayPacket: Codable, Identifiable, Sendable {
         latitude: Double? = nil,
         longitude: Double? = nil,
         isEmergency: Bool? = nil,
+        to: String? = nil,
+        seq: Int? = nil,
+        audio: Data? = nil,
         id: UUID = UUID(),
         timestamp: Date = Date()
     ) {
@@ -56,6 +69,9 @@ nonisolated struct MeshRelayPacket: Codable, Identifiable, Sendable {
         self.latitude = latitude
         self.longitude = longitude
         self.isEmergency = isEmergency
+        self.to = to
+        self.seq = seq
+        self.audio = audio
     }
 
     func encoded() -> Data? {

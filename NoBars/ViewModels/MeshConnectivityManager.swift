@@ -8,6 +8,7 @@ import AVFoundation
 import WidgetKit
 import os
 import CryptoKit
+import UserNotifications
 
 @MainActor
 @Observable
@@ -18,7 +19,10 @@ final class MeshConnectivityManager: NSObject {
 
     // MARK: State
 
+    /// Buddies with a direct link (Wi-Fi/Bluetooth via MultipeerConnectivity, or Bluetooth LE).
     private(set) var connectedPeers: [String] = []
+    /// Buddies heard through the mesh in the last two minutes but not directly linked.
+    private(set) var meshBuddies: [String] = []
     private(set) var receivedMessages: [MeshMessage] = []
     private(set) var buddyLocations: [String: BuddyLocation] = [:]
     private(set) var isHosting = false
@@ -75,6 +79,24 @@ final class MeshConnectivityManager: NSObject {
     @ObservationIgnored private var compassActive = false
     @ObservationIgnored private var compassBroadcastTask: Task<Void, Never>?
 
+    /// A link to one neighbour, over either transport.
+    enum MeshLink: Hashable {
+        case mc(MCPeerID)
+        case ble(UUID)
+    }
+
+    @ObservationIgnored private let ble = MeshBLETransport()
+    /// Verified Bluetooth LE links and the buddy on the other end.
+    @ObservationIgnored private var bleNameByLink: [UUID: String] = [:]
+    @ObservationIgnored private var unverifiedBLE: Set<UUID> = []
+    /// Tokens of phones we reach over MultipeerConnectivity, so Bluetooth LE
+    /// doesn't open a second, slower link to the same phone.
+    @ObservationIgnored private var mcTokenByName: [String: String] = [:]
+    @ObservationIgnored private var tokenSeen: [String: String] = [:]
+    @ObservationIgnored private var lastHeard: [String: Date] = [:]
+    @ObservationIgnored private var expiryTask: Task<Void, Never>?
+    private static let meshBuddyWindow: TimeInterval = 120
+
     // MARK: Init
 
     override init() {
@@ -105,6 +127,126 @@ final class MeshConnectivityManager: NSObject {
         locationManager.distanceFilter = 5
         voice.attach(session: session)
         loadGroupState()
+        setUpBLE()
+        setUpRelayCalls()
+        expiryTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(15))
+                self?.refreshMeshBuddies()
+            }
+        }
+    }
+
+    // MARK: Bluetooth LE
+
+    private func setUpBLE() {
+        ble.info = { [weak self] in
+            guard let self else { return Data() }
+            let obj: [String: Any] = ["v": 1, "g": self.groupKeys.discoveryTag, "t": self.myToken]
+            return (try? JSONSerialization.data(withJSONObject: obj)) ?? Data()
+        }
+        ble.shouldLink = { [weak self] tag, token in
+            guard let self, tag == self.groupKeys.discoveryTag, token != self.myToken else { return false }
+            // Already linked over MultipeerConnectivity: that link is faster.
+            return !self.mcTokenByName.values.contains(token)
+        }
+        ble.onNote = { [weak self] in self?.note($0) }
+        ble.onLinkUp = { [weak self] id in
+            guard let self else { return }
+            self.unverifiedBLE.insert(id)
+            self.note("Bluetooth link up, checking group key")
+            self.sendHello(over: .ble(id))
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.helloTimeout))
+                guard let self, self.unverifiedBLE.contains(id) else { return }
+                self.reject(.ble(id), reason: "no hello")
+            }
+        }
+        ble.onLinkDown = { [weak self] id in
+            guard let self else { return }
+            self.unverifiedBLE.remove(id)
+            if let name = self.bleNameByLink.removeValue(forKey: id) {
+                self.note("Bluetooth link to \(name) closed")
+                self.refreshConnected()
+            }
+        }
+        ble.onData = { [weak self] data, id in self?.handleIncoming(data: data, from: .ble(id)) }
+    }
+
+    // MARK: Relayed calls
+
+    private func setUpRelayCalls() {
+        voice.sendRelayAudio = { [weak self] chunk, seq in
+            guard let self, let peer = self.voice.activePeer else { return }
+            var packet = MeshRelayPacket(kind: .voice, senderName: self.myName, to: peer, seq: seq, audio: chunk)
+            MeshCrypto.sign(&packet, with: self.signingKey)
+            self.router.markOwn(packet)
+            self.broadcast(packet, excluding: nil, fastOnly: true)
+        }
+        voice.sendRelayEnd = { [weak self] peer in self?.sendCallSignal("end", to: peer) }
+    }
+
+    private func sendCallSignal(_ action: String, to peer: String) {
+        var packet = MeshRelayPacket(kind: .call, senderName: myName, text: action, to: peer)
+        MeshCrypto.sign(&packet, with: signingKey)
+        router.markOwn(packet)
+        broadcast(packet, excluding: nil, fastOnly: true)
+    }
+
+    /// Every buddy name with a verified direct link, in the order they joined.
+    private var linkedNames: Set<String> {
+        Set(peerIDsByName.keys).union(bleNameByLink.values)
+    }
+
+    /// Recomputes `connectedPeers` from both transports and announces joins and leaves.
+    private func refreshConnected() {
+        let now = linkedNames
+        let old = Set(connectedPeers)
+        let joined = connectedPeers.filter { now.contains($0) } + now.subtracting(old).sorted()
+        for name in now.subtracting(old).sorted() {
+            appendMessage(MeshMessage(sender: "", text: "\(name) joined the mesh", date: Date(), isSystem: true))
+            flashToast("\(name) joined the mesh")
+            Self.haptic()
+            note("Connected: \(name)")
+        }
+        for name in old.subtracting(now).sorted() {
+            appendMessage(MeshMessage(sender: "", text: "\(name) left the mesh", date: Date(), isSystem: true))
+            note("Disconnected: \(name)")
+        }
+        guard joined != connectedPeers else { return }
+        connectedPeers = joined
+        if !now.subtracting(old).isEmpty {
+            flushOutbox()
+            startTestSenderIfNeeded()
+        }
+        refreshMeshBuddies()
+        publishWidgetState()
+        syncLiveActivity()
+    }
+
+    private func heard(_ name: String) {
+        guard name != myName else { return }
+        lastHeard[name] = Date()
+        refreshMeshBuddies()
+    }
+
+    private func refreshMeshBuddies() {
+        let cutoff = Date().addingTimeInterval(-Self.meshBuddyWindow)
+        lastHeard = lastHeard.filter { $0.value > cutoff }
+        let direct = Set(connectedPeers)
+        let list = lastHeard.keys.filter { !direct.contains($0) && $0 != myName }.sorted()
+        if list != meshBuddies { meshBuddies = list }
+    }
+
+    // MARK: Background alerts
+
+    private func notifyIfBackground(title: String, body: String) {
+        guard UIApplication.shared.applicationState != .active else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
     // MARK: Persistence
@@ -259,9 +401,14 @@ final class MeshConnectivityManager: NSObject {
         stopBrowsing()
         session.disconnect()
         reconnectTask?.cancel()
+        ble.stop()
         connectedPeers.removeAll()
+        meshBuddies.removeAll()
         peerIDsByName.removeAll()
         unverifiedPeers.removeAll()
+        bleNameByLink.removeAll()
+        unverifiedBLE.removeAll()
+        mcTokenByName.removeAll()
         emergencyBuddies.removeAll()
         publishWidgetState()
         liveActivity.end()
@@ -276,7 +423,9 @@ final class MeshConnectivityManager: NSObject {
         browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: Self.serviceType)
         session.delegate = self; advertiser.delegate = self; browser.delegate = self
         voice.attach(session: session)
-        connectedPeers.removeAll(); peerIDsByName.removeAll(); unverifiedPeers.removeAll()
+        connectedPeers.removeAll(); peerIDsByName.removeAll(); unverifiedPeers.removeAll(); mcTokenByName.removeAll()
+        bleNameByLink.removeAll(); unverifiedBLE.removeAll()
+        ble.restart()
         buddyLocations.removeValue(forKey: myName)
         if wasHosting { startHosting() }
         if wasBrowsing { startBrowsing() }
@@ -288,6 +437,7 @@ final class MeshConnectivityManager: NSObject {
         guard !isHosting else { return }
         meshStartError = nil
         advertiser.startAdvertisingPeer()
+        ble.start()
         isHosting = true
         note("Hosting started as \(myName)")
     }
@@ -373,6 +523,8 @@ final class MeshConnectivityManager: NSObject {
         locationManager.pausesLocationUpdatesAutomatically = false
         if isLocationAuthorized {
             locationManager.startUpdatingLocation()
+            // Send the last fix right away instead of waiting on GPS.
+            if lastKnownCoordinate == nil, let cached = locationManager.location { lastKnownCoordinate = cached.coordinate }
             if let coord = lastKnownCoordinate { broadcastMyLocation(coord) }
         } else if locationManager.authorizationStatus == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
@@ -382,7 +534,7 @@ final class MeshConnectivityManager: NSObject {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
                 guard let self, self.isPanicBroadcasting else { return }
-                if let coord = self.lastKnownCoordinate { self.broadcastMyLocation(coord) }
+                if let coord = self.lastKnownCoordinate ?? self.locationManager.location?.coordinate { self.broadcastMyLocation(coord) }
             }
         }
     }
@@ -443,7 +595,7 @@ final class MeshConnectivityManager: NSObject {
     /// Calls run point-to-point over a direct link, so the buddy must be in range.
     func startCall(with peerName: String, video: Bool = false) {
         guard let peerID = peerIDsByName[peerName] else {
-            flashToast("\(peerName) isn't directly connected")
+            startRelayCall(with: peerName, video: video)
             return
         }
         Task {
@@ -461,29 +613,83 @@ final class MeshConnectivityManager: NSObject {
 
     func endCall() { voice.endCall() }
 
+    /// Calls a buddy who's only reachable through other phones. Audio hops
+    /// over Wi-Fi links only; Bluetooth LE is too slow for voice.
+    private func startRelayCall(with peerName: String, video: Bool) {
+        guard connectedPeers.contains(peerName) || meshBuddies.contains(peerName) else {
+            flashToast("\(peerName) isn't reachable right now"); return
+        }
+        guard !peerIDsByName.isEmpty else {
+            flashToast("Calls need a Wi-Fi link to someone. Bluetooth-only is too slow."); return
+        }
+        Task {
+            if AVAudioApplication.shared.recordPermission == .undetermined {
+                _ = await AVAudioApplication.requestRecordPermission()
+            }
+            guard AVAudioApplication.shared.recordPermission == .granted else {
+                flashToast("Allow Microphone in Settings to call"); return
+            }
+            if video { flashToast("Video needs \(peerName) in direct range. Calling with audio.") }
+            voice.startRelayCall(with: peerName)
+            sendCallSignal("invite", to: peerName)
+            note("Relay call to \(peerName)")
+        }
+    }
+
     // MARK: Relay
 
     /// Seals and sends to every verified neighbour except `excluding`.
-    private func broadcast(_ packet: MeshRelayPacket, excluding: MCPeerID?) {
-        let targets = peerIDsByName.values.filter { $0 != excluding }
-        guard !targets.isEmpty, let data = MeshCrypto.seal(packet, with: groupKeys.key) else { return }
-        try? session.send(data, toPeers: Array(targets), with: .reliable)
+    /// `fastOnly` keeps call traffic off Bluetooth LE links, which can't carry it.
+    private func broadcast(_ packet: MeshRelayPacket, excluding: MeshLink?, fastOnly: Bool = false) {
+        guard let data = MeshCrypto.seal(packet, with: groupKeys.key) else { return }
+        let mcTargets = peerIDsByName.values.filter { MeshLink.mc($0) != excluding }
+        if !mcTargets.isEmpty {
+            try? session.send(data, toPeers: Array(mcTargets), with: packet.kind == .voice ? .unreliable : .reliable)
+        }
+        guard !fastOnly else { return }
+        for id in bleNameByLink.keys where MeshLink.ble(id) != excluding {
+            ble.send(data, to: id)
+        }
     }
 
     /// Sent straight to a new neighbour. Only a phone holding the group key can
     /// open it, and the signature pins our key to our name on their side.
-    private func sendHello(to peerID: MCPeerID) {
+    private func sendHello(over link: MeshLink) {
         var hello = MeshRelayPacket(kind: .hello, senderName: myName, ttl: 1)
         MeshCrypto.sign(&hello, with: signingKey)
         guard let data = MeshCrypto.seal(hello, with: groupKeys.key) else { return }
-        try? session.send(data, toPeers: [peerID], with: .reliable)
+        switch link {
+        case .mc(let peerID): try? session.send(data, toPeers: [peerID], with: .reliable)
+        case .ble(let id): ble.send(data, to: id)
+        }
     }
 
-    private func handleIncoming(data: Data, from peerID: MCPeerID) {
-        let name = peerID.displayName
+    private func linkLabel(_ link: MeshLink) -> String {
+        switch link {
+        case .mc(let p): return p.displayName
+        case .ble(let id): return bleNameByLink[id] ?? "Bluetooth peer"
+        }
+    }
+
+    private func isUnverified(_ link: MeshLink) -> Bool {
+        switch link {
+        case .mc(let p): return unverifiedPeers[p.displayName] == p
+        case .ble(let id): return unverifiedBLE.contains(id)
+        }
+    }
+
+    private func isVerified(_ link: MeshLink) -> Bool {
+        switch link {
+        case .mc(let p): return peerIDsByName[p.displayName] == p
+        case .ble(let id): return bleNameByLink[id] != nil
+        }
+    }
+
+    private func handleIncoming(data: Data, from link: MeshLink) {
+        let name = linkLabel(link)
         guard let packet = MeshCrypto.open(data, with: groupKeys.key) else {
             note("Dropped unreadable packet from \(name) (wrong group key)")
-            if unverifiedPeers[name] != nil { reject(peerID, reason: "can't prove the group code") }
+            if isUnverified(link) { reject(link, reason: "can't prove the group code") }
             return
         }
         guard MeshCrypto.verify(packet), let key = packet.senderKey else {
@@ -494,9 +700,12 @@ final class MeshConnectivityManager: NSObject {
             note("Dropped stale \(packet.kind.rawValue) packet from \(packet.senderName)")
             return
         }
-        if packet.kind == .hello, packet.senderName != name {
-            reject(peerID, reason: "hello name doesn't match")
-            return
+        if packet.kind == .hello {
+            // Over MultipeerConnectivity the link already carries a name, and the hello must match it.
+            if case .mc(let p) = link, packet.senderName != p.displayName {
+                reject(link, reason: "hello name doesn't match"); return
+            }
+            if packet.senderName == myName { reject(link, reason: "uses my name"); return }
         }
         if packet.senderName == myName {
             guard key == signingKey.publicKey.rawRepresentation else {
@@ -513,34 +722,62 @@ final class MeshConnectivityManager: NSObject {
             case .mismatch:
                 note("Rejected packet claiming to be \(packet.senderName): key doesn't match")
                 flashToast("Someone tried to send as \(packet.senderName). Ignored.")
-                if packet.kind == .hello { reject(peerID, reason: "identity doesn't match") }
+                if packet.kind == .hello { reject(link, reason: "identity doesn't match") }
                 return
             }
         }
         if packet.kind == .hello {
-            verify(peerID)
+            switch link {
+            case .mc(let p): verify(p)
+            case .ble(let id): verifyBLE(id, name: packet.senderName)
+            }
+            heard(packet.senderName)
             return
         }
         // Everything else must come over a verified link.
-        guard peerIDsByName[name] == peerID else { return }
-        handleIncoming(packet, from: peerID)
+        guard isVerified(link) else { return }
+        handleIncoming(packet, from: link)
     }
 
-    private func reject(_ peerID: MCPeerID, reason: String) {
-        unverifiedPeers.removeValue(forKey: peerID.displayName)
-        note("Dropped link to \(peerID.displayName): \(reason)")
-        session.cancelConnectPeer(peerID)
+    private func reject(_ link: MeshLink, reason: String) {
+        note("Dropped link to \(linkLabel(link)): \(reason)")
+        switch link {
+        case .mc(let peerID):
+            unverifiedPeers.removeValue(forKey: peerID.displayName)
+            session.cancelConnectPeer(peerID)
+        case .ble(let id):
+            unverifiedBLE.remove(id)
+            ble.disconnect(id)
+        }
     }
 
-    private func handleIncoming(_ packet: MeshRelayPacket, from peerID: MCPeerID) {
+    private func verifyBLE(_ id: UUID, name: String) {
+        unverifiedBLE.remove(id)
+        guard bleNameByLink[id] != name else { return }
+        bleNameByLink[id] = name
+        note("Bluetooth link verified: \(name)")
+        refreshConnected()
+    }
+
+    private func handleIncoming(_ packet: MeshRelayPacket, from link: MeshLink) {
         guard case .deliver(let forward) = router.receive(packet) else { return }
+        heard(packet.senderName)
         switch packet.kind {
         case .hello:
             return
+        case .call, .voice:
+            guard packet.to == myName else {
+                // Not for us: pass it on over fast links only.
+                if let forward { broadcast(forward, excluding: link, fastOnly: true) }
+                return
+            }
+            handleCallPacket(packet)
+            return
         case .message:
             if let text = packet.text {
-                note("Message from \(packet.senderName) via \(peerID.displayName): \(text)")
+                note("Message from \(packet.senderName) via \(linkLabel(link)): \(text)")
                 appendMessage(MeshMessage(sender: packet.senderName, text: text, date: packet.timestamp))
+                notifyIfBackground(title: packet.senderName, body: text)
             }
         case .location:
             if let lat = packet.latitude, let lng = packet.longitude {
@@ -555,6 +792,7 @@ final class MeshConnectivityManager: NSObject {
                     if !wasEmergency {
                         flashToast("SOS from \(packet.senderName)")
                         note("SOS from \(packet.senderName)")
+                        notifyIfBackground(title: "SOS from \(packet.senderName)", body: "Open NoBars to see where they are.")
                         UINotificationFeedbackGenerator().notificationOccurred(.warning)
                     }
                 } else {
@@ -566,7 +804,38 @@ final class MeshConnectivityManager: NSObject {
                 if wasEmergency != emergencyBuddies.contains(packet.senderName) { publishWidgetState() }
             }
         }
-        if let forward { broadcast(forward, excluding: peerID) }
+        if let forward { broadcast(forward, excluding: link) }
+    }
+
+    private func handleCallPacket(_ packet: MeshRelayPacket) {
+        let from = packet.senderName
+        switch packet.kind {
+        case .call where packet.text == "invite":
+            if voice.isInCall {
+                if voice.activePeer != from { sendCallSignal("end", to: from) } // busy
+                return
+            }
+            guard AVAudioApplication.shared.recordPermission == .granted else {
+                flashToast("\(from) is calling. Allow Microphone to answer.")
+                sendCallSignal("end", to: from)
+                return
+            }
+            note("Relay call from \(from)")
+            flashToast("\(from) is calling (via mesh)")
+            voice.startRelayCall(with: from)
+            notifyIfBackground(title: "\(from) is calling", body: "Open NoBars to talk.")
+        case .call where packet.text == "end":
+            if voice.isRelayCall && voice.activePeer == from {
+                voice.endCall(notifyRemote: false)
+                flashToast("\(from) ended the call")
+            }
+        case .voice:
+            if voice.isRelayCall, voice.activePeer == from, let audio = packet.audio, let seq = packet.seq {
+                voice.playRelay(audio, seq: seq)
+            }
+        default:
+            break
+        }
     }
 
     // MARK: Widgets, permissions, deep links
@@ -586,6 +855,7 @@ final class MeshConnectivityManager: NSObject {
         if AVAudioApplication.shared.recordPermission == .undetermined {
             AVAudioApplication.requestRecordPermission { _ in }
         }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     /// `nobars://sos` starts panic mode (used by the Control Center
@@ -614,19 +884,13 @@ final class MeshConnectivityManager: NSObject {
         let name = peerID.displayName
         unverifiedPeers.removeValue(forKey: name)
         guard peerIDsByName[name] != peerID else { return }
-        let isNew = !connectedPeers.contains(name)
         peerIDsByName[name] = peerID
-        if isNew {
-            connectedPeers.append(name)
-            appendMessage(MeshMessage(sender: "", text: "\(name) joined the mesh", date: Date(), isSystem: true))
-            flashToast("\(name) joined the mesh")
-            Self.haptic()
-            publishWidgetState()
+        if let token = tokenSeen[name] {
+            mcTokenByName[name] = token
+            // A Bluetooth LE link to the same phone is now redundant.
+            for (id, n) in bleNameByLink where n == name { ble.disconnect(id) }
         }
-        flushOutbox()
-        startTestSenderIfNeeded()
-        note("Connected: \(name)")
-        syncLiveActivity()
+        refreshConnected()
     }
 }
 
@@ -690,7 +954,7 @@ extension MeshConnectivityManager: MCSessionDelegate {
             case .connected:
                 self.meshStartError = nil
                 // Not a buddy yet: both sides first swap an encrypted, signed hello.
-                self.sendHello(to: peerID)
+                self.sendHello(over: .mc(peerID))
                 // Their hello can land before this callback runs.
                 guard self.peerIDsByName[peerID.displayName] != peerID else { return }
                 self.unverifiedPeers[peerID.displayName] = peerID
@@ -698,18 +962,16 @@ extension MeshConnectivityManager: MCSessionDelegate {
                 Task { [weak self] in
                     try? await Task.sleep(for: .seconds(Self.helloTimeout))
                     guard let self, self.unverifiedPeers[peerID.displayName] == peerID else { return }
-                    self.reject(peerID, reason: "no hello")
+                    self.reject(.mc(peerID), reason: "no hello")
                 }
             case .notConnected:
-                let wasConnected = self.connectedPeers.contains(peerID.displayName)
-                self.unverifiedPeers.removeValue(forKey: peerID.displayName)
-                self.peerIDsByName.removeValue(forKey: peerID.displayName)
-                self.connectedPeers.removeAll { $0 == peerID.displayName }
-                if wasConnected { self.appendMessage(MeshMessage(sender: "", text: "\(peerID.displayName) left the mesh", date: Date(), isSystem: true)) }
-                self.note("Disconnected: \(peerID.displayName)")
-                if self.voice.activePeer == peerID.displayName { self.voice.endCall() }
-                self.publishWidgetState()
-                self.syncLiveActivity()
+                let name = peerID.displayName
+                self.unverifiedPeers.removeValue(forKey: name)
+                guard self.peerIDsByName[name] == peerID else { self.scheduleRediscovery(); return }
+                self.peerIDsByName.removeValue(forKey: name)
+                self.mcTokenByName.removeValue(forKey: name)
+                if !self.voice.isRelayCall && self.voice.activePeer == name { self.voice.endCall() }
+                self.refreshConnected()
                 self.scheduleRediscovery()
             case .connecting:
                 self.note("Connecting to \(peerID.displayName)…")
@@ -720,7 +982,7 @@ extension MeshConnectivityManager: MCSessionDelegate {
     }
 
     nonisolated func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
-        Task { @MainActor in self.handleIncoming(data: data, from: peerID) }
+        Task { @MainActor in self.handleIncoming(data: data, from: .mc(peerID)) }
     }
 
     nonisolated func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {
@@ -742,9 +1004,12 @@ extension MeshConnectivityManager: MCSessionDelegate {
 extension MeshConnectivityManager: MCNearbyServiceAdvertiserDelegate {
 
     nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        let theirTag = context.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        let parts = (context.flatMap { String(data: $0, encoding: .utf8) } ?? "").split(separator: "|", omittingEmptySubsequences: false)
+        let theirTag = parts.first.map(String.init) ?? ""
+        let theirToken = parts.count > 1 ? String(parts[1]) : nil
         Task { @MainActor in
             guard self.testAllows(peerID.displayName) else { invitationHandler(false, nil); return }
+            if let theirToken { self.tokenSeen[peerID.displayName] = theirToken }
             guard theirTag == self.groupKeys.discoveryTag else {
                 self.note("Invitation from \(peerID.displayName) ignored (different group)")
                 invitationHandler(false, nil)
@@ -772,13 +1037,14 @@ extension MeshConnectivityManager: MCNearbyServiceBrowserDelegate {
         let theirToken = info?["token"]; let theirTag = info?["g"] ?? ""
         Task { @MainActor in
             guard theirTag == self.groupKeys.discoveryTag, self.testAllows(peerID.displayName) else { return }
+            if let theirToken { self.tokenSeen[peerID.displayName] = theirToken }
             self.note("Found \(peerID.displayName)")
             if let theirToken, self.myToken >= theirToken {
                 self.note("Waiting for \(peerID.displayName) to invite (tie-break)")
                 return
             }
             self.note("Inviting \(peerID.displayName)…")
-            browser.invitePeer(peerID, to: self.session, withContext: Data(self.groupKeys.discoveryTag.utf8), timeout: 30)
+            browser.invitePeer(peerID, to: self.session, withContext: Data("\(self.groupKeys.discoveryTag)|\(self.myToken)".utf8), timeout: 30)
         }
     }
 
