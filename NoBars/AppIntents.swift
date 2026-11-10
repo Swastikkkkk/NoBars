@@ -28,7 +28,7 @@ nonisolated struct SendSOSIntent: AppIntent {
     }
 }
 
-nonisolated struct DistrictShortcuts: AppShortcutsProvider {
+nonisolated struct NoBarsShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: GoLiveIntent(),

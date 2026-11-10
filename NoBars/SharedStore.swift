@@ -1,7 +1,7 @@
 import Foundation
 
 enum SharedStore {
-    static let suiteName = "group.com.swastik.districtmesh"
+    static let suiteName = "group.com.swastik.nobars"
     private static let buddiesKey = "buddyLocations"
     private static let peersKey = "connectedPeers"
     private static let emergencyKey = "emergencyBuddies"

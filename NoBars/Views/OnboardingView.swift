@@ -17,7 +17,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            DistrictTheme.immersiveGradient.ignoresSafeArea()
+            NoBarsTheme.immersiveGradient.ignoresSafeArea()
 
             VStack(spacing: 28) {
                 progressDots
@@ -167,9 +167,9 @@ struct OnboardingView: View {
             Button(action: advance) {
                 Text(step == .ready ? "Enter the Mesh" : "Continue")
             }
-            .buttonStyle(DistrictButtonStyle(
+            .buttonStyle(NoBarsButtonStyle(
                 tint: LinearGradient(colors: [.white], startPoint: .top, endPoint: .bottom),
-                foreground: DistrictTheme.accent
+                foreground: NoBarsTheme.accent
             ))
             .disabled(!canAdvance)
 
@@ -194,7 +194,7 @@ struct OnboardingView: View {
     private func advance() {
         if step == .ready {
             mesh.joinMesh(name: name, group: group)
-            UserDefaults.standard.set(true, forKey: "district.onboarded")
+            UserDefaults.standard.set(true, forKey: "nobars.onboarded")
             onFinish()
             return
         }

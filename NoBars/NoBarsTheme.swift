@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum DistrictTheme {
+enum NoBarsTheme {
     static let accent      = Color(red: 0.45, green: 0.30, blue: 0.95)
     static let alert       = Color(red: 0.95, green: 0.23, blue: 0.30)
     static let accentDeep  = Color(red: 0.30, green: 0.20, blue: 0.85)
@@ -32,13 +32,13 @@ extension View {
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.08), lineWidth: 1))
     }
 
-    func districtBackground() -> some View {
-        self.background(DistrictTheme.screenGradient.ignoresSafeArea())
+    func noBarsBackground() -> some View {
+        self.background(NoBarsTheme.screenGradient.ignoresSafeArea())
     }
 }
 
-struct DistrictButtonStyle: ButtonStyle {
-    var tint: LinearGradient = DistrictTheme.brandGradient
+struct NoBarsButtonStyle: ButtonStyle {
+    var tint: LinearGradient = NoBarsTheme.brandGradient
     var foreground: Color = .white
 
     func makeBody(configuration: Configuration) -> some View {

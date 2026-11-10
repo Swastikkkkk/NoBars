@@ -33,7 +33,7 @@ struct CompassView: View {
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .districtBackground()
+        .noBarsBackground()
         .navigationTitle("Compass")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -77,7 +77,7 @@ struct CompassView: View {
                                 .foregroundStyle(on ? .white : .white.opacity(0.65))
                         }
                         .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(on ? AnyShapeStyle(DistrictTheme.brandGradient) : AnyShapeStyle(.white.opacity(0.1)), in: Capsule())
+                        .background(on ? AnyShapeStyle(NoBarsTheme.brandGradient) : AnyShapeStyle(.white.opacity(0.1)), in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -105,7 +105,7 @@ struct CompassView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(name).font(.title2.bold()).foregroundStyle(.white)
                     Text(cardinalLabel(bearing))
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(DistrictTheme.accent)
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(NoBarsTheme.accent)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
@@ -137,7 +137,7 @@ struct CompassView: View {
 
                     // My avatar sits at the center
                     Circle()
-                        .fill(DistrictTheme.screenGradient)
+                        .fill(NoBarsTheme.screenGradient)
                         .frame(width: 46, height: 46)
                     InitialsAvatar(name: mesh.myName, size: 40)
                 }
@@ -148,7 +148,7 @@ struct CompassView: View {
                 if stale {
                     Label("Last seen \(target.date, style: .relative) — may be off",
                           systemImage: "clock.badge.exclamationmark")
-                        .font(.caption).foregroundStyle(DistrictTheme.alert.opacity(0.9))
+                        .font(.caption).foregroundStyle(NoBarsTheme.alert.opacity(0.9))
                 } else if !tooClose {
                     Label("Updated \(target.date, style: .relative)",
                           systemImage: "clock")
@@ -162,7 +162,7 @@ struct CompassView: View {
     private func togetherState(dist: Double) -> some View {
         VStack(spacing: 10) {
             Image(systemName: "person.2.fill")
-                .font(.system(size: 52)).foregroundStyle(DistrictTheme.accent)
+                .font(.system(size: 52)).foregroundStyle(NoBarsTheme.accent)
             Text("You're together!").font(.title2.bold()).foregroundStyle(.white)
             Text("~\(Int(dist.rounded())) m").font(.subheadline).foregroundStyle(.white.opacity(0.55))
         }
@@ -204,7 +204,7 @@ struct CompassView: View {
 
                 ForEach(0..<3, id: \.self) { i in
                     Circle()
-                        .stroke(DistrictTheme.accent.opacity(0.4), lineWidth: 1.5)
+                        .stroke(NoBarsTheme.accent.opacity(0.4), lineWidth: 1.5)
                         .frame(
                             width:  pulse ? CGFloat(80 + i * 70) : 30,
                             height: pulse ? CGFloat(80 + i * 70) : 30
@@ -245,8 +245,8 @@ struct CompassView: View {
             Label("Enable Location in Settings", systemImage: "location.slash")
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(DistrictTheme.alert.opacity(0.15), in: Capsule())
-                .foregroundStyle(DistrictTheme.alert)
+                .background(NoBarsTheme.alert.opacity(0.15), in: Capsule())
+                .foregroundStyle(NoBarsTheme.alert)
         }
     }
 
@@ -323,7 +323,7 @@ private struct CompassRose: View {
 private struct CompassNeedle: View {
     let stale: Bool
 
-    private var color: Color { stale ? .white.opacity(0.35) : DistrictTheme.accent }
+    private var color: Color { stale ? .white.opacity(0.35) : NoBarsTheme.accent }
 
     var body: some View {
         ZStack {

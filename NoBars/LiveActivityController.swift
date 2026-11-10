@@ -5,8 +5,8 @@ import os
 @MainActor
 final class LiveActivityController {
 
-    private var activity: Activity<DistrictWidgetsAttributes>?
-    private let log = Logger(subsystem: "com.swastik.districtmesh", category: "liveactivity")
+    private var activity: Activity<NoBarsActivityAttributes>?
+    private let log = Logger(subsystem: "com.swastik.nobars", category: "liveactivity")
 
     func update(
         connectedPeers: [String],
@@ -45,7 +45,7 @@ final class LiveActivityController {
             }
         }
 
-        let state = DistrictWidgetsAttributes.ContentState(
+        let state = NoBarsActivityAttributes.ContentState(
             connectedCount: count,
             headline: headline,
             isSharingLocation: sharingLocation
@@ -56,7 +56,7 @@ final class LiveActivityController {
                 await activity.update(.init(state: state, staleDate: nil))
             }
         } else {
-            let attrs = DistrictWidgetsAttributes(group: group.isEmpty ? "NoBars" : group)
+            let attrs = NoBarsActivityAttributes(group: group.isEmpty ? "NoBars" : group)
             do {
                 activity = try Activity.request(
                     attributes: attrs,

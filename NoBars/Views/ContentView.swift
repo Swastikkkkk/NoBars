@@ -11,8 +11,8 @@ struct MyApp: App {
 
 struct RootView: View {
     @State private var mesh = MeshConnectivityManager.shared
-    @AppStorage("district.onboarded") private var onboarded = false
-    @AppStorage("district.walkthroughDone") private var walkthroughDone = false
+    @AppStorage("nobars.onboarded") private var onboarded = false
+    @AppStorage("nobars.walkthroughDone") private var walkthroughDone = false
     @State private var showSplash = true
 
     var body: some View {
@@ -24,7 +24,7 @@ struct RootView: View {
                     .zIndex(10)
             }
         }
-        .tint(DistrictTheme.accent)
+        .tint(NoBarsTheme.accent)
         .preferredColorScheme(.dark)
         .fontDesign(.rounded)
         .animation(.easeInOut, value: onboarded)
@@ -72,7 +72,7 @@ struct SplashView: View {
                 ZStack {
                     ForEach(0..<4, id: \.self) { i in
                         Circle()
-                            .stroke(DistrictTheme.accent.opacity(0.18), lineWidth: 1)
+                            .stroke(NoBarsTheme.accent.opacity(0.18), lineWidth: 1)
                             .frame(
                                 width: pulse ? CGFloat(112 + i * 52) : 24,
                                 height: pulse ? CGFloat(112 + i * 52) : 24
@@ -88,10 +88,10 @@ struct SplashView: View {
 
                     ZStack {
                         Circle()
-                            .fill(DistrictTheme.accent.opacity(0.18))
+                            .fill(NoBarsTheme.accent.opacity(0.18))
                             .frame(width: 106, height: 106)
                         Circle()
-                            .stroke(DistrictTheme.accent.opacity(0.45), lineWidth: 1.5)
+                            .stroke(NoBarsTheme.accent.opacity(0.45), lineWidth: 1.5)
                             .frame(width: 106, height: 106)
                         Image(systemName: "dot.radiowaves.left.and.right")
                             .font(.system(size: 46, weight: .semibold))

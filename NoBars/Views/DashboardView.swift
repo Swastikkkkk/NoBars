@@ -39,7 +39,7 @@ struct DashboardView: View {
                 .tabItem { Label("Map", systemImage: "map.fill") }
                 .tag(2)
         }
-        .tint(DistrictTheme.accent)
+        .tint(NoBarsTheme.accent)
         .onAppear { applyTabBarStyle() }
         .task { await runScreenshotTour() }
         .onChange(of: selectedTab) { _, tab in if tab == 1 { unread = 0 } }
@@ -110,7 +110,7 @@ private struct HomeTab: View {
                 }
             }
             .scrollDismissesKeyboard(.immediately)
-            .districtBackground()
+            .noBarsBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -131,7 +131,7 @@ private struct HomeTab: View {
                         mesh.togglePanic()
                     } label: {
                         Image(systemName: mesh.isPanicBroadcasting ? "location.fill" : "location")
-                            .foregroundStyle(mesh.isPanicBroadcasting ? DistrictTheme.alert : .white.opacity(0.55))
+                            .foregroundStyle(mesh.isPanicBroadcasting ? NoBarsTheme.alert : .white.opacity(0.55))
                             .symbolEffect(.pulse, isActive: mesh.isPanicBroadcasting)
                     }
                 }
@@ -142,7 +142,7 @@ private struct HomeTab: View {
     // MARK: Radar section (full-width immersive)
 
     private var ringColor: Color {
-        !mesh.connectedPeers.isEmpty ? .green : (mesh.isLive ? DistrictTheme.accent : .white)
+        !mesh.connectedPeers.isEmpty ? .green : (mesh.isLive ? NoBarsTheme.accent : .white)
     }
 
     private var radarSection: some View {
@@ -165,7 +165,7 @@ private struct HomeTab: View {
             ZStack {
                 radarRings
                 if mesh.isLive && mesh.connectedPeers.isEmpty {
-                    ScanningRing(color: DistrictTheme.accent)
+                    ScanningRing(color: NoBarsTheme.accent)
                 }
                 if !mesh.connectedPeers.isEmpty {
                     radarCenter
@@ -238,7 +238,7 @@ private struct HomeTab: View {
             .background(
                 mesh.isLive
                     ? AnyShapeStyle(.white.opacity(0.08))
-                    : AnyShapeStyle(DistrictTheme.brandGradient),
+                    : AnyShapeStyle(NoBarsTheme.brandGradient),
                 in: RoundedRectangle(cornerRadius: 18, style: .continuous)
             )
             .overlay(
@@ -276,7 +276,7 @@ private struct HomeTab: View {
             HStack(spacing: 8) {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(DistrictTheme.accent)
+                    .foregroundStyle(NoBarsTheme.accent)
                 Text("Scanning for buddies…")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
@@ -290,13 +290,13 @@ private struct HomeTab: View {
                 HStack(spacing: 6) {
                     Image(systemName: mesh.groupCode.isEmpty ? "globe" : "lock.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(DistrictTheme.accent)
+                        .foregroundStyle(NoBarsTheme.accent)
                     Text(mesh.groupCode.isEmpty ? "Open mesh" : mesh.groupCode)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(DistrictTheme.accent)
+                        .foregroundStyle(NoBarsTheme.accent)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 7)
-                .background(DistrictTheme.accent.opacity(0.1), in: Capsule())
+                .background(NoBarsTheme.accent.opacity(0.1), in: Capsule())
 
                 Spacer()
 
@@ -305,7 +305,7 @@ private struct HomeTab: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(DistrictTheme.brandGradient, in: Capsule())
+                        .background(NoBarsTheme.brandGradient, in: Capsule())
                 }
             }
         }
@@ -313,7 +313,7 @@ private struct HomeTab: View {
         .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(DistrictTheme.accent.opacity(0.18), lineWidth: 1)
+                .stroke(NoBarsTheme.accent.opacity(0.18), lineWidth: 1)
         )
     }
 
@@ -328,7 +328,7 @@ private struct HomeTab: View {
     private var errorBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(DistrictTheme.alert)
+                .foregroundStyle(NoBarsTheme.alert)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Local network blocked")
                     .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
@@ -339,13 +339,13 @@ private struct HomeTab: View {
             Spacer()
             Button("Fix") { mesh.openSystemSettings() }
                 .font(.caption.weight(.bold))
-                .foregroundStyle(DistrictTheme.alert)
+                .foregroundStyle(NoBarsTheme.alert)
                 .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(DistrictTheme.alert.opacity(0.15), in: Capsule())
+                .background(NoBarsTheme.alert.opacity(0.15), in: Capsule())
         }
         .padding(14)
-        .background(DistrictTheme.alert.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(DistrictTheme.alert.opacity(0.18), lineWidth: 1))
+        .background(NoBarsTheme.alert.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NoBarsTheme.alert.opacity(0.18), lineWidth: 1))
     }
 
     // MARK: People strip
@@ -394,7 +394,7 @@ private struct HomeTab: View {
                     Button { selectedTab = 1 } label: {
                         Text("View all →")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(DistrictTheme.accent)
+                            .foregroundStyle(NoBarsTheme.accent)
                     }
                 }
             }
@@ -416,7 +416,7 @@ private struct HomeTab: View {
                             HStack {
                                 Text(m.sender == mesh.myName ? "You" : m.sender)
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(m.sender == mesh.myName ? DistrictTheme.accent : .white.opacity(0.8))
+                                    .foregroundStyle(m.sender == mesh.myName ? NoBarsTheme.accent : .white.opacity(0.8))
                                 Spacer()
                                 Text(m.date.formatted(date: .omitted, time: .shortened))
                                     .font(.caption2)
@@ -447,7 +447,7 @@ private struct HomeTab: View {
                 Button(action: sendMessage) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 30))
-                        .foregroundStyle(canSend ? DistrictTheme.accent : .white.opacity(0.12))
+                        .foregroundStyle(canSend ? NoBarsTheme.accent : .white.opacity(0.12))
                 }
                 .disabled(!canSend)
                 .animation(.easeOut(duration: 0.15), value: canSend)
@@ -473,7 +473,7 @@ private struct HomeTab: View {
             NavigationLink { CompassView(mesh: mesh) } label: {
                 toolTile(
                     gradient: LinearGradient(
-                        colors: [DistrictTheme.accent.opacity(0.35), DistrictTheme.accent.opacity(0.08)],
+                        colors: [NoBarsTheme.accent.opacity(0.35), NoBarsTheme.accent.opacity(0.08)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
                     icon: "location.north.line.fill",
@@ -564,7 +564,7 @@ private struct PeerChip: View {
                 if mesh.emergencyBuddies.contains(name) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(DistrictTheme.alert)
+                        .foregroundStyle(NoBarsTheme.alert)
                         .offset(x: 2, y: 2)
                 } else if mesh.buddyLocations[name] != nil {
                     Circle().fill(.green).frame(width: 13, height: 13)
@@ -594,9 +594,9 @@ private struct PeerChip: View {
         Button { MeshConnectivityManager.haptic(); action() } label: {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DistrictTheme.accent)
+                .foregroundStyle(NoBarsTheme.accent)
                 .frame(width: 28, height: 28)
-                .background(DistrictTheme.accent.opacity(0.12), in: Circle())
+                .background(NoBarsTheme.accent.opacity(0.12), in: Circle())
         }
         .buttonStyle(.plain)
         .disabled(mesh.voice.isInCall && icon != "message.fill")
@@ -622,7 +622,7 @@ private struct FullChatTab: View {
                 messageList
                 composerBar
             }
-            .districtBackground()
+            .noBarsBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -690,14 +690,14 @@ private struct FullChatTab: View {
         VStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(DistrictTheme.accent.opacity(0.08))
+                    .fill(NoBarsTheme.accent.opacity(0.08))
                     .frame(width: 90, height: 90)
                 Circle()
-                    .stroke(DistrictTheme.accent.opacity(0.12), lineWidth: 1)
+                    .stroke(NoBarsTheme.accent.opacity(0.12), lineWidth: 1)
                     .frame(width: 90, height: 90)
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 34))
-                    .foregroundStyle(DistrictTheme.accent.opacity(0.55))
+                    .foregroundStyle(NoBarsTheme.accent.opacity(0.55))
             }
             VStack(spacing: 7) {
                 Text("Start the conversation")
@@ -763,7 +763,7 @@ private struct FullChatTab: View {
                 Button(action: send) {
                     ZStack {
                         Circle()
-                            .fill(canSend ? DistrictTheme.accent : Color.white.opacity(0.08))
+                            .fill(canSend ? NoBarsTheme.accent : Color.white.opacity(0.08))
                             .frame(width: 38, height: 38)
                         Image(systemName: "arrow.up")
                             .font(.system(size: 15, weight: .bold))
@@ -801,7 +801,7 @@ private struct FullMapTab: View {
                         } label: {
                             Label(mesh.isPanicBroadcasting ? "Sharing" : "Share",
                                   systemImage: mesh.isPanicBroadcasting ? "location.fill.viewfinder" : "location")
-                                .foregroundStyle(mesh.isPanicBroadcasting ? DistrictTheme.alert : .primary)
+                                .foregroundStyle(mesh.isPanicBroadcasting ? NoBarsTheme.alert : .primary)
                                 .symbolEffect(.pulse, isActive: mesh.isPanicBroadcasting)
                         }
                     }
@@ -863,7 +863,7 @@ private struct ChatBubble: View {
                             .padding(.vertical, 10)
                             .background(
                                 mine
-                                    ? AnyShapeStyle(DistrictTheme.brandGradient)
+                                    ? AnyShapeStyle(NoBarsTheme.brandGradient)
                                     : AnyShapeStyle(Color.white.opacity(0.1)),
                                 in: RoundedRectangle(cornerRadius: 20, style: .continuous)
                             )
@@ -923,8 +923,8 @@ struct InitialsAvatar: View {
 private struct SettingsView: View {
     let mesh: MeshConnectivityManager
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("district.onboarded") private var onboarded = false
-    @AppStorage("district.walkthroughDone") private var walkthroughDone = true
+    @AppStorage("nobars.onboarded") private var onboarded = false
+    @AppStorage("nobars.walkthroughDone") private var walkthroughDone = true
     @State private var name = ""
     @State private var group = ""
     @State private var showDiagnostics = false
@@ -972,6 +972,17 @@ private struct SettingsView: View {
                     Button("Test lock-screen banner") { mesh.testLiveActivity() }
                 }
 
+                Section {
+                    LabeledContent("Your key", value: mesh.myFingerprint)
+                        .font(.body.monospaced())
+                    Button("Reset trusted buddies") { mesh.resetTrustedBuddies() }
+                    Button("Clear chat history", role: .destructive) { mesh.clearChatHistory() }
+                } header: {
+                    Text("Privacy")
+                } footer: {
+                    Text("Messages are encrypted with your group code and signed by each phone. A buddy's key is trusted the first time you meet. Reset if a friend reinstalls the app.")
+                }
+
                 Section("App") {
                     Button("Replay tutorial") {
                         walkthroughDone = false
@@ -1000,7 +1011,7 @@ private struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .districtBackground()
+            .noBarsBackground()
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }

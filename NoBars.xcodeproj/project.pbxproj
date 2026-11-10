@@ -35,7 +35,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		000000000000000000000120 /* DistrictMesh.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DistrictMesh.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000120 /* NoBars.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoBars.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A032B39303635EA0029B797 /* WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A61AA91300C811A001D3D5E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		7A61AA93300C811A001D3D5E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -49,22 +49,22 @@
 			);
 			target = 7A032B38303635EA0029B797 /* WidgetExtension */;
 		};
-		7A61AA69300BEFA2001D3D5E /* Exceptions for "DistrictMesh" folder in "DistrictMesh" target */ = {
+		7A61AA69300BEFA2001D3D5E /* Exceptions for "NoBars" folder in "NoBars" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 000000000000000100000000 /* DistrictMesh */;
+			target = 000000000000000100000000 /* NoBars */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		000000000000000000000010 /* DistrictMesh */ = {
+		000000000000000000000010 /* NoBars */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				7A61AA69300BEFA2001D3D5E /* Exceptions for "DistrictMesh" folder in "DistrictMesh" target */,
+				7A61AA69300BEFA2001D3D5E /* Exceptions for "NoBars" folder in "NoBars" target */,
 			);
-			path = DistrictMesh;
+			path = NoBars;
 			sourceTree = "<group>";
 		};
 		7A032B3C303635EA0029B797 /* Widget */ = {
@@ -96,7 +96,7 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000000010 /* DistrictMesh */,
+				000000000000000000000010 /* NoBars */,
 				7A032B3C303635EA0029B797 /* Widget */,
 				7A61AA90300C811A001D3D5E /* Frameworks */,
 				000000000000000000000020 /* Products */,
@@ -106,7 +106,7 @@
 		000000000000000000000020 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000000120 /* DistrictMesh.app */,
+				000000000000000000000120 /* NoBars.app */,
 				7A032B39303635EA0029B797 /* WidgetExtension.appex */,
 			);
 			name = Products;
@@ -124,9 +124,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		000000000000000100000000 /* DistrictMesh */ = {
+		000000000000000100000000 /* NoBars */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "DistrictMesh" */;
+			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "NoBars" */;
 			buildPhases = (
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
@@ -139,11 +139,11 @@
 				7A032B4B303635EB0029B797 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				000000000000000000000010 /* DistrictMesh */,
+				000000000000000000000010 /* NoBars */,
 			);
-			name = DistrictMesh;
-			productName = MyApp;
-			productReference = 000000000000000000000120 /* DistrictMesh.app */;
+			name = NoBars;
+			productName = NoBars;
+			productReference = 000000000000000000000120 /* NoBars.app */;
 			productType = "com.apple.product-type.application";
 		};
 		7A032B38303635EA0029B797 /* WidgetExtension */ = {
@@ -182,7 +182,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "DistrictMesh" */;
+			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "NoBars" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -196,7 +196,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				000000000000000100000000 /* DistrictMesh */,
+				000000000000000100000000 /* NoBars */,
 				7A032B38303635EA0029B797 /* WidgetExtension */,
 			);
 		};
@@ -237,7 +237,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		000000000000000011000000 /* Debug configuration for PBXProject "DistrictMesh" */ = {
+		000000000000000011000000 /* Debug configuration for PBXProject "NoBars" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -307,7 +307,7 @@
 			};
 			name = Debug;
 		};
-		000000000000000012000000 /* Release configuration for PBXProject "DistrictMesh" */ = {
+		000000000000000012000000 /* Release configuration for PBXProject "NoBars" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -369,11 +369,11 @@
 			};
 			name = Release;
 		};
-		000000000000000111000000 /* Debug configuration for PBXNativeTarget "DistrictMesh" */ = {
+		000000000000000111000000 /* Debug configuration for PBXNativeTarget "NoBars" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = DistrictMesh/DistrictMesh.entitlements;
+				CODE_SIGN_ENTITLEMENTS = NoBars/NoBars.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -382,7 +382,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = DistrictMesh/Info.plist;
+				INFOPLIST_FILE = NoBars/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = NoBars;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used for offline video calls with nearby buddies over the mesh.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "This app uses local networking to connect nearby devices without internet.";
@@ -404,7 +404,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.districtmesh;
+				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.nobars;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
@@ -421,11 +421,11 @@
 			};
 			name = Debug;
 		};
-		000000000000000112000000 /* Release configuration for PBXNativeTarget "DistrictMesh" */ = {
+		000000000000000112000000 /* Release configuration for PBXNativeTarget "NoBars" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = DistrictMesh/DistrictMesh.entitlements;
+				CODE_SIGN_ENTITLEMENTS = NoBars/NoBars.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -434,7 +434,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = DistrictMesh/Info.plist;
+				INFOPLIST_FILE = NoBars/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = NoBars;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used for offline video calls with nearby buddies over the mesh.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "This app uses local networking to connect nearby devices without internet.";
@@ -456,7 +456,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.districtmesh;
+				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.nobars;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
@@ -493,7 +493,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.districtmesh.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.nobars.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -526,7 +526,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.districtmesh.Widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.swastik.nobars.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -543,19 +543,19 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		000000000000000010000000 /* Build configuration list for PBXProject "DistrictMesh" */ = {
+		000000000000000010000000 /* Build configuration list for PBXProject "NoBars" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				000000000000000011000000 /* Debug configuration for PBXProject "DistrictMesh" */,
-				000000000000000012000000 /* Release configuration for PBXProject "DistrictMesh" */,
+				000000000000000011000000 /* Debug configuration for PBXProject "NoBars" */,
+				000000000000000012000000 /* Release configuration for PBXProject "NoBars" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		000000000000000110000000 /* Build configuration list for PBXNativeTarget "DistrictMesh" */ = {
+		000000000000000110000000 /* Build configuration list for PBXNativeTarget "NoBars" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				000000000000000111000000 /* Debug configuration for PBXNativeTarget "DistrictMesh" */,
-				000000000000000112000000 /* Release configuration for PBXNativeTarget "DistrictMesh" */,
+				000000000000000111000000 /* Debug configuration for PBXNativeTarget "NoBars" */,
+				000000000000000112000000 /* Release configuration for PBXNativeTarget "NoBars" */,
 			);
 			defaultConfigurationName = Release;
 		};

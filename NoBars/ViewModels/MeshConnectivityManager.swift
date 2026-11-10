@@ -7,6 +7,7 @@ import ActivityKit
 import AVFoundation
 import WidgetKit
 import os
+import CryptoKit
 
 @MainActor
 @Observable
@@ -37,27 +38,39 @@ final class MeshConnectivityManager: NSObject {
     private(set) var meshStartError: String?
     private(set) var myName: String
     private(set) var groupCode: String
+    /// Short fingerprint of this phone's signing key, shown in Settings so
+    /// buddies can compare it in person.
+    var myFingerprint: String { MeshCrypto.fingerprint(signingKey.publicKey.rawRepresentation) }
 
     // MARK: MPC internals
 
     private static let serviceType = "nobars-mesh"
-    static let nameKey = "district.displayName"
-    static let groupKey = "district.groupCode"
+    static let nameKey = "nobars.displayName"
+    static let groupKey = "nobars.groupCode"
+    private static let pinsKeyPrefix = "nobars.pins."
+    /// Seconds a new link gets to complete the encrypted hello before it's dropped.
+    private static let helloTimeout: Double = 10
 
     private var myPeerID: MCPeerID
     private var session: MCSession
     private var advertiser: MCNearbyServiceAdvertiser
     private var browser: MCNearbyServiceBrowser
     private let myToken: String
+    @ObservationIgnored private var groupKeys: GroupKeys
+    @ObservationIgnored private let signingKey = MeshIdentity.loadOrCreate()
+    @ObservationIgnored private var pins = KeyPins()
+    /// Linked over MultipeerConnectivity but not yet proven to hold the group key.
+    @ObservationIgnored private var unverifiedPeers: [String: MCPeerID] = [:]
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     @ObservationIgnored private var router = MeshRouter()
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
-    @ObservationIgnored private let log = Logger(subsystem: "com.swastik.districtmesh", category: "mesh")
+    @ObservationIgnored private let log = Logger(subsystem: "com.swastik.nobars", category: "mesh")
     @ObservationIgnored private let locationManager = CLLocationManager()
     @ObservationIgnored private var lastKnownCoordinate: CLLocationCoordinate2D?
     @ObservationIgnored private var panicTask: Task<Void, Never>?
     @ObservationIgnored private var toastTask: Task<Void, Never>?
-    @ObservationIgnored private var outbox: [(packet: MeshRelayPacket, messageID: UUID)] = []
+    @ObservationIgnored private var outbox: [ChatArchive.Queued] = []
     @ObservationIgnored private var peerIDsByName: [String: MCPeerID] = [:]
     @ObservationIgnored private var compassActive = false
     @ObservationIgnored private var compassBroadcastTask: Task<Void, Never>?
@@ -69,14 +82,17 @@ final class MeshConnectivityManager: NSObject {
         let name = UserDefaults.standard.string(forKey: Self.nameKey).flatMap { $0.isEmpty ? nil : $0 } ?? UIDevice.current.name
         let group = UserDefaults.standard.string(forKey: Self.groupKey) ?? ""
         let peerID = MCPeerID(displayName: name)
+        let keys = GroupKeys(code: group)
         self.myName = name
         self.groupCode = group
+        self.groupKeys = keys
         self.myToken = token
         self.myPeerID = peerID
         self.session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: .required)
+        // Only the one-way tag is advertised. The group code never leaves the phone.
         self.advertiser = MCNearbyServiceAdvertiser(
             peer: peerID,
-            discoveryInfo: ["token": token, "group": group],
+            discoveryInfo: ["token": token, "g": keys.discoveryTag],
             serviceType: Self.serviceType
         )
         self.browser = MCNearbyServiceBrowser(peer: peerID, serviceType: Self.serviceType)
@@ -88,6 +104,60 @@ final class MeshConnectivityManager: NSObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.distanceFilter = 5
         voice.attach(session: session)
+        loadGroupState()
+    }
+
+    // MARK: Persistence
+
+    /// Loads this group's chat history, unsent messages and trusted keys.
+    private func loadGroupState() {
+        let archive = ChatStore.load(tag: groupKeys.discoveryTag)
+        receivedMessages = archive.messages
+        outbox = archive.outbox
+        if let data = UserDefaults.standard.data(forKey: Self.pinsKeyPrefix + groupKeys.discoveryTag),
+           let saved = try? JSONDecoder().decode(KeyPins.self, from: data) {
+            pins = saved
+        } else {
+            pins = KeyPins()
+        }
+    }
+
+    private func saveChatSoon() {
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard let self, !Task.isCancelled else { return }
+            self.saveChatNow()
+        }
+    }
+
+    private func saveChatNow() {
+        ChatStore.save(ChatArchive(messages: receivedMessages, outbox: outbox), tag: groupKeys.discoveryTag)
+    }
+
+    private func savePins() {
+        if let data = try? JSONEncoder().encode(pins) {
+            UserDefaults.standard.set(data, forKey: Self.pinsKeyPrefix + groupKeys.discoveryTag)
+        }
+    }
+
+    private func appendMessage(_ message: MeshMessage) {
+        receivedMessages.append(message)
+        saveChatSoon()
+    }
+
+    func clearChatHistory() {
+        receivedMessages.removeAll()
+        outbox.removeAll()
+        ChatStore.delete(tag: groupKeys.discoveryTag)
+        flashToast("Chat history cleared")
+    }
+
+    /// Forgets every pinned buddy key, e.g. after a friend reinstalls the app.
+    func resetTrustedBuddies() {
+        pins.removeAll()
+        savePins()
+        flashToast("Trusted buddies reset")
     }
 
     func note(_ message: String) {
@@ -166,7 +236,13 @@ final class MeshConnectivityManager: NSObject {
         let groupChanged = newGroup != groupCode
         guard nameChanged || groupChanged else { return }
         if nameChanged { myName = newName; UserDefaults.standard.set(newName, forKey: Self.nameKey) }
-        if groupChanged { groupCode = newGroup; UserDefaults.standard.set(newGroup, forKey: Self.groupKey) }
+        if groupChanged {
+            saveTask?.cancel(); saveChatNow()
+            groupCode = newGroup
+            UserDefaults.standard.set(newGroup, forKey: Self.groupKey)
+            groupKeys = GroupKeys(code: newGroup)
+            loadGroupState()
+        }
         rebuildNetworking()
         note("Identity: \(myName) \u{00B7} group \u{201C}\(groupCode)\u{201D}")
     }
@@ -185,6 +261,7 @@ final class MeshConnectivityManager: NSObject {
         reconnectTask?.cancel()
         connectedPeers.removeAll()
         peerIDsByName.removeAll()
+        unverifiedPeers.removeAll()
         emergencyBuddies.removeAll()
         publishWidgetState()
         liveActivity.end()
@@ -195,11 +272,11 @@ final class MeshConnectivityManager: NSObject {
         stopHosting(); stopBrowsing(); session.disconnect()
         myPeerID = MCPeerID(displayName: myName)
         session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
-        advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: ["token": myToken, "group": groupCode], serviceType: Self.serviceType)
+        advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: ["token": myToken, "g": groupKeys.discoveryTag], serviceType: Self.serviceType)
         browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: Self.serviceType)
         session.delegate = self; advertiser.delegate = self; browser.delegate = self
         voice.attach(session: session)
-        connectedPeers.removeAll(); peerIDsByName.removeAll()
+        connectedPeers.removeAll(); peerIDsByName.removeAll(); unverifiedPeers.removeAll()
         buddyLocations.removeValue(forKey: myName)
         if wasHosting { startHosting() }
         if wasBrowsing { startBrowsing() }
@@ -239,14 +316,15 @@ final class MeshConnectivityManager: NSObject {
     func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let packet = MeshRelayPacket(kind: .message, senderName: myName, text: trimmed)
+        var packet = MeshRelayPacket(kind: .message, senderName: myName, text: trimmed)
+        MeshCrypto.sign(&packet, with: signingKey)
         router.markOwn(packet)
         let queued = connectedPeers.isEmpty
         var message = MeshMessage(sender: myName, text: trimmed, date: packet.timestamp)
         message.pending = queued
-        receivedMessages.append(message)
+        if queued { outbox.append(.init(packet: packet, messageID: message.id)) }
+        appendMessage(message)
         if queued {
-            outbox.append((packet, message.id))
             flashToast("Queued — sends when a buddy connects")
         } else {
             broadcast(packet, excluding: nil)
@@ -263,6 +341,7 @@ final class MeshConnectivityManager: NSObject {
         }
         note("Delivered \(outbox.count) queued message(s)")
         outbox.removeAll()
+        saveChatSoon()
     }
 
     // MARK: Location & panic
@@ -271,9 +350,10 @@ final class MeshConnectivityManager: NSObject {
     /// or timer broadcast can never silently clear an active emergency.
     private func broadcastMyLocation(_ coordinate: CLLocationCoordinate2D) {
         lastKnownCoordinate = coordinate
-        let packet = MeshRelayPacket(kind: .location, senderName: myName,
+        var packet = MeshRelayPacket(kind: .location, senderName: myName,
                                      latitude: coordinate.latitude, longitude: coordinate.longitude,
                                      isEmergency: isPanicBroadcasting)
+        MeshCrypto.sign(&packet, with: signingKey)
         router.markOwn(packet)
         buddyLocations[myName] = BuddyLocation(name: myName, coordinate: coordinate, date: packet.timestamp)
         broadcast(packet, excluding: nil)
@@ -383,20 +463,84 @@ final class MeshConnectivityManager: NSObject {
 
     // MARK: Relay
 
+    /// Seals and sends to every verified neighbour except `excluding`.
     private func broadcast(_ packet: MeshRelayPacket, excluding: MCPeerID?) {
-        guard let data = packet.encoded() else { return }
-        let targets = excluding.map { ex in session.connectedPeers.filter { $0 != ex } } ?? session.connectedPeers
-        guard !targets.isEmpty else { return }
-        try? session.send(data, toPeers: targets, with: .reliable)
+        let targets = peerIDsByName.values.filter { $0 != excluding }
+        guard !targets.isEmpty, let data = MeshCrypto.seal(packet, with: groupKeys.key) else { return }
+        try? session.send(data, toPeers: Array(targets), with: .reliable)
+    }
+
+    /// Sent straight to a new neighbour. Only a phone holding the group key can
+    /// open it, and the signature pins our key to our name on their side.
+    private func sendHello(to peerID: MCPeerID) {
+        var hello = MeshRelayPacket(kind: .hello, senderName: myName, ttl: 1)
+        MeshCrypto.sign(&hello, with: signingKey)
+        guard let data = MeshCrypto.seal(hello, with: groupKeys.key) else { return }
+        try? session.send(data, toPeers: [peerID], with: .reliable)
+    }
+
+    private func handleIncoming(data: Data, from peerID: MCPeerID) {
+        let name = peerID.displayName
+        guard let packet = MeshCrypto.open(data, with: groupKeys.key) else {
+            note("Dropped unreadable packet from \(name) (wrong group key)")
+            if unverifiedPeers[name] != nil { reject(peerID, reason: "can't prove the group code") }
+            return
+        }
+        guard MeshCrypto.verify(packet), let key = packet.senderKey else {
+            note("Dropped unsigned packet from \(name)")
+            return
+        }
+        if packet.kind != .message, abs(packet.timestamp.timeIntervalSinceNow) > MeshCrypto.maxPositionAge {
+            note("Dropped stale \(packet.kind.rawValue) packet from \(packet.senderName)")
+            return
+        }
+        if packet.kind == .hello, packet.senderName != name {
+            reject(peerID, reason: "hello name doesn't match")
+            return
+        }
+        if packet.senderName == myName {
+            guard key == signingKey.publicKey.rawRepresentation else {
+                note("Rejected packet using my name with another key")
+                return
+            }
+        } else {
+            switch pins.check(name: packet.senderName, key: key) {
+            case .new:
+                savePins()
+                note("Trusted \(packet.senderName) (key \(MeshCrypto.fingerprint(key)))")
+            case .match:
+                break
+            case .mismatch:
+                note("Rejected packet claiming to be \(packet.senderName): key doesn't match")
+                flashToast("Someone tried to send as \(packet.senderName). Ignored.")
+                if packet.kind == .hello { reject(peerID, reason: "identity doesn't match") }
+                return
+            }
+        }
+        if packet.kind == .hello {
+            verify(peerID)
+            return
+        }
+        // Everything else must come over a verified link.
+        guard peerIDsByName[name] == peerID else { return }
+        handleIncoming(packet, from: peerID)
+    }
+
+    private func reject(_ peerID: MCPeerID, reason: String) {
+        unverifiedPeers.removeValue(forKey: peerID.displayName)
+        note("Dropped link to \(peerID.displayName): \(reason)")
+        session.cancelConnectPeer(peerID)
     }
 
     private func handleIncoming(_ packet: MeshRelayPacket, from peerID: MCPeerID) {
         guard case .deliver(let forward) = router.receive(packet) else { return }
         switch packet.kind {
+        case .hello:
+            return
         case .message:
             if let text = packet.text {
                 note("Message from \(packet.senderName) via \(peerID.displayName): \(text)")
-                receivedMessages.append(MeshMessage(sender: packet.senderName, text: text, date: packet.timestamp))
+                appendMessage(MeshMessage(sender: packet.senderName, text: text, date: packet.timestamp))
             }
         case .location:
             if let lat = packet.latitude, let lng = packet.longitude {
@@ -464,6 +608,26 @@ final class MeshConnectivityManager: NSObject {
             self.note("Re-scanning for buddies")
         }
     }
+
+    /// Promotes a linked phone to a buddy once its hello checks out.
+    private func verify(_ peerID: MCPeerID) {
+        let name = peerID.displayName
+        unverifiedPeers.removeValue(forKey: name)
+        guard peerIDsByName[name] != peerID else { return }
+        let isNew = !connectedPeers.contains(name)
+        peerIDsByName[name] = peerID
+        if isNew {
+            connectedPeers.append(name)
+            appendMessage(MeshMessage(sender: "", text: "\(name) joined the mesh", date: Date(), isSystem: true))
+            flashToast("\(name) joined the mesh")
+            Self.haptic()
+            publishWidgetState()
+        }
+        flushOutbox()
+        startTestSenderIfNeeded()
+        note("Connected: \(name)")
+        syncLiveActivity()
+    }
 }
 
 // MARK: - CI hooks (Debug builds only)
@@ -525,24 +689,23 @@ extension MeshConnectivityManager: MCSessionDelegate {
             switch state {
             case .connected:
                 self.meshStartError = nil
-                let isNew = !self.connectedPeers.contains(peerID.displayName)
-                self.peerIDsByName[peerID.displayName] = peerID
-                if isNew {
-                    self.connectedPeers.append(peerID.displayName)
-                    self.receivedMessages.append(MeshMessage(sender: "", text: "\(peerID.displayName) joined the mesh", date: Date(), isSystem: true))
-                    self.flashToast("\(peerID.displayName) joined the mesh")
-                    Self.haptic()
-                    self.publishWidgetState()
+                // Not a buddy yet: both sides first swap an encrypted, signed hello.
+                self.sendHello(to: peerID)
+                // Their hello can land before this callback runs.
+                guard self.peerIDsByName[peerID.displayName] != peerID else { return }
+                self.unverifiedPeers[peerID.displayName] = peerID
+                self.note("Linked to \(peerID.displayName), checking group key")
+                Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(Self.helloTimeout))
+                    guard let self, self.unverifiedPeers[peerID.displayName] == peerID else { return }
+                    self.reject(peerID, reason: "no hello")
                 }
-                self.flushOutbox()
-                self.startTestSenderIfNeeded()
-                self.note("Connected: \(peerID.displayName)")
-                self.syncLiveActivity()
             case .notConnected:
                 let wasConnected = self.connectedPeers.contains(peerID.displayName)
+                self.unverifiedPeers.removeValue(forKey: peerID.displayName)
                 self.peerIDsByName.removeValue(forKey: peerID.displayName)
                 self.connectedPeers.removeAll { $0 == peerID.displayName }
-                if wasConnected { self.receivedMessages.append(MeshMessage(sender: "", text: "\(peerID.displayName) left the mesh", date: Date(), isSystem: true)) }
+                if wasConnected { self.appendMessage(MeshMessage(sender: "", text: "\(peerID.displayName) left the mesh", date: Date(), isSystem: true)) }
                 self.note("Disconnected: \(peerID.displayName)")
                 if self.voice.activePeer == peerID.displayName { self.voice.endCall() }
                 self.publishWidgetState()
@@ -557,14 +720,17 @@ extension MeshConnectivityManager: MCSessionDelegate {
     }
 
     nonisolated func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
-        guard let packet = MeshRelayPacket.decode(from: data) else { return }
-        Task { @MainActor in self.handleIncoming(packet, from: peerID) }
+        Task { @MainActor in self.handleIncoming(data: data, from: peerID) }
     }
 
     nonisolated func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {
         // The stream is handed straight to the call thread and never touched here again.
         nonisolated(unsafe) let stream = stream
-        Task { @MainActor in self.voice.handleIncomingStream(stream, name: streamName, from: peerID, session: session) }
+        Task { @MainActor in
+            // Calls only from buddies who passed the hello check.
+            guard self.peerIDsByName[peerID.displayName] == peerID else { stream.close(); return }
+            self.voice.handleIncomingStream(stream, name: streamName, from: peerID, session: session)
+        }
     }
 
     nonisolated func session(_ session: MCSession, didStartReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, with progress: Progress) {}
@@ -576,10 +742,10 @@ extension MeshConnectivityManager: MCSessionDelegate {
 extension MeshConnectivityManager: MCNearbyServiceAdvertiserDelegate {
 
     nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        let theirGroup = context.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        let theirTag = context.flatMap { String(data: $0, encoding: .utf8) } ?? ""
         Task { @MainActor in
             guard self.testAllows(peerID.displayName) else { invitationHandler(false, nil); return }
-            guard theirGroup == self.groupCode else {
+            guard theirTag == self.groupKeys.discoveryTag else {
                 self.note("Invitation from \(peerID.displayName) ignored (different group)")
                 invitationHandler(false, nil)
                 return
@@ -603,16 +769,16 @@ extension MeshConnectivityManager: MCNearbyServiceAdvertiserDelegate {
 extension MeshConnectivityManager: MCNearbyServiceBrowserDelegate {
 
     nonisolated func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
-        let theirToken = info?["token"]; let theirGroup = info?["group"] ?? ""
+        let theirToken = info?["token"]; let theirTag = info?["g"] ?? ""
         Task { @MainActor in
-            guard theirGroup == self.groupCode, self.testAllows(peerID.displayName) else { return }
+            guard theirTag == self.groupKeys.discoveryTag, self.testAllows(peerID.displayName) else { return }
             self.note("Found \(peerID.displayName)")
             if let theirToken, self.myToken >= theirToken {
                 self.note("Waiting for \(peerID.displayName) to invite (tie-break)")
                 return
             }
             self.note("Inviting \(peerID.displayName)…")
-            browser.invitePeer(peerID, to: self.session, withContext: Data(self.groupCode.utf8), timeout: 30)
+            browser.invitePeer(peerID, to: self.session, withContext: Data(self.groupKeys.discoveryTag.utf8), timeout: 30)
         }
     }
 

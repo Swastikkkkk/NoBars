@@ -1,7 +1,7 @@
 import Foundation
 import ActivityKit
 
-struct DistrictWidgetsAttributes: ActivityAttributes {
+struct NoBarsActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var connectedCount: Int
         var headline: String

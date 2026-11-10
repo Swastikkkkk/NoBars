@@ -9,9 +9,9 @@ import WidgetKit
 import SwiftUI
 
 @main
-struct DistrictWidgetBundle: WidgetBundle {
+struct NoBarsWidgetBundle: WidgetBundle {
     var body: some Widget {
-        DistrictWidget()
+        NoBarsWidget()
         WidgetControl()
         WidgetLiveActivity()
     }

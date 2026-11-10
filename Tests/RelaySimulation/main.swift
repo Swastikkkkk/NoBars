@@ -2,7 +2,7 @@
 // the app ships, then checks the guarantees the README makes.
 //
 // Run on a Mac:
-//   xcrun swiftc DistrictMesh/Models/MeshRelayPacket.swift Tests/RelaySimulation/main.swift -o relay-sim && ./relay-sim
+//   xcrun swiftc NoBars/Models/MeshRelayPacket.swift Tests/RelaySimulation/main.swift -o relay-sim && ./relay-sim
 
 import Foundation
 

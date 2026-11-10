@@ -3,14 +3,14 @@
 #
 #   Alice <-> Bob   group "ci"; then Bob relaunches in group "other" and must not reconnect.
 #
-# Checks: discovery + encrypted session, chat both ways, SOS flood, group isolation. Two simulators is what a free
+# Checks: discovery + encrypted session, sealed+signed hello handshake, chat both ways, SOS flood, group isolation. Two simulators is what a free
 # GitHub runner can hold; multi-hop routing is covered by Tests/RelaySimulation,
 # which runs the same MeshRouter code.
 set -uo pipefail
 
-APP="$1"                      # path to DistrictMesh.app (Debug, iphonesimulator)
+APP="$1"                      # path to NoBars.app (Debug, iphonesimulator)
 OUT="${2:-sim-out}"
-BID=com.swastik.districtmesh
+BID=com.swastik.nobars
 NAMES="Alice Bob"
 mkdir -p "$OUT"
 udid() { eval echo "\$U_$1"; }
@@ -32,7 +32,7 @@ done
 echo "letting simulators settle"; sleep 45
 
 stream() { xcrun simctl spawn "$(udid $1)" log stream --level info --style compact \
-  --predicate 'subsystem == "com.swastik.districtmesh"' > "$OUT/$2.log" 2>&1 & }
+  --predicate 'subsystem == "com.swastik.nobars"' > "$OUT/$2.log" 2>&1 & }
 
 for n in $NAMES; do
   u=$(udid $n)
@@ -45,7 +45,7 @@ done
 sleep 3
 
 launch() { # name group only [send]
-  local args=(-district.onboarded YES -district.walkthroughDone YES -district.displayName "$1" -district.groupCode "$2" -meshTestOnly "$3")
+  local args=(-nobars.onboarded YES -nobars.walkthroughDone YES -nobars.displayName "$1" -nobars.groupCode "$2" -meshTestOnly "$3")
   if [ -n "${4:-}" ]; then args+=(-meshTestSend "$4"); fi
   if [ -n "${5:-}" ]; then args+=(-meshTestSOS YES); fi
   t 300 xcrun simctl launch "$(udid $1)" "$BID" "${args[@]}" && return 0
@@ -57,7 +57,7 @@ launch Alice ci Bob   "hello from alice" sos
 
 echo "waiting for mesh + messages..."; sleep 60
 # SOS fires from Alice right after her chat messages (simctl openurl would
-# stop on a system "Open in District?" prompt that real taps don't show).
+# stop on a system "Open in NoBars?" prompt that real taps don't show).
 echo "waiting for SOS..."; sleep 25
 for n in $NAMES; do t 30 xcrun simctl io "$(udid $n)" screenshot "$OUT/$n.png" >/dev/null 2>&1 || true; done
 
@@ -73,6 +73,8 @@ fail=0
 check() { if grep -qE "$3" "$OUT/$2.log"; then r=PASS; else r=FAIL; fi
   if [ "$1" = not ]; then [ $r = PASS ] && r=FAIL || r=PASS; fi
   echo "$r  $4"; [ $r = FAIL ] && fail=1; return 0; }
+check is  Bob       "Trusted Alice"                 "Encrypted signed hello: Bob pins Alice's key"
+check is  Alice     "Trusted Bob"                   "Encrypted signed hello: Alice pins Bob's key"
 check is  Bob       "Connected: Alice"              "Bob connects to Alice"
 check is  Alice     "Connected: Bob"                "Alice connects to Bob"
 check is  Bob       "Message from Alice via Alice"  "Bob receives Alice's chat"

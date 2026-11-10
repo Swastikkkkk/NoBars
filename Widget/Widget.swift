@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Reads what the app writes to the shared App Group.
 private enum MeshSnapshot {
-    static let suite = UserDefaults(suiteName: "group.com.swastik.districtmesh")
+    static let suite = UserDefaults(suiteName: "group.com.swastik.nobars")
 
     static var peers: [String] {
         guard let data = suite?.data(forKey: "connectedPeers"),
@@ -76,8 +76,8 @@ struct MeshWidgetView: View {
     }
 }
 
-struct DistrictWidget: Widget {
-    let kind = "DistrictMeshStatus"
+struct NoBarsWidget: Widget {
+    let kind = "NoBarsStatus"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: MeshProvider()) { entry in
@@ -91,7 +91,7 @@ struct DistrictWidget: Widget {
 }
 
 #Preview(as: .systemSmall) {
-    DistrictWidget()
+    NoBarsWidget()
 } timeline: {
     MeshEntry(date: .now, peers: ["Arjun", "Kabir", "Aman"], emergencies: [], updatedAt: .now)
     MeshEntry(date: .now, peers: ["Arjun"], emergencies: ["Arjun"], updatedAt: .now)

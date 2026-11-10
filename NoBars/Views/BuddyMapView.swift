@@ -12,7 +12,7 @@ struct BuddyMapView: View {
         Map {
             ForEach(buddies) { buddy in
                 Marker(buddy.name, coordinate: buddy.coordinate)
-                    .tint(mesh.emergencyBuddies.contains(buddy.name) ? DistrictTheme.alert : DistrictTheme.accent)
+                    .tint(mesh.emergencyBuddies.contains(buddy.name) ? NoBarsTheme.alert : NoBarsTheme.accent)
             }
         }
         .overlay {
@@ -34,7 +34,7 @@ struct BuddyMapView: View {
             ForEach(buddies) { buddy in
                 HStack {
                     Circle()
-                        .fill(mesh.emergencyBuddies.contains(buddy.name) ? DistrictTheme.alert : DistrictTheme.accent)
+                        .fill(mesh.emergencyBuddies.contains(buddy.name) ? NoBarsTheme.alert : NoBarsTheme.accent)
                         .frame(width: 9, height: 9)
                     Text(buddy.name).font(.callout.weight(.medium)).foregroundStyle(.white)
                     if buddy.name == mesh.myName {

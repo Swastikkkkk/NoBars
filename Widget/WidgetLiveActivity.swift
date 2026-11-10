@@ -2,8 +2,8 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-// DistrictWidgetsAttributes must match the definition in MeshActivityAttributes.swift exactly.
-struct DistrictWidgetsAttributes: ActivityAttributes {
+// NoBarsActivityAttributes must match the definition in MeshActivityAttributes.swift exactly.
+struct NoBarsActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var connectedCount: Int
         var headline: String
@@ -15,12 +15,12 @@ struct DistrictWidgetsAttributes: ActivityAttributes {
 struct WidgetLiveActivity: Widget {
     private let accent = Color(red: 0.52, green: 0.35, blue: 1.0)
 
-    private func statusIcon(_ state: DistrictWidgetsAttributes.ContentState) -> String {
+    private func statusIcon(_ state: NoBarsActivityAttributes.ContentState) -> String {
         state.isSharingLocation ? "location.fill" : "dot.radiowaves.left.and.right"
     }
 
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: DistrictWidgetsAttributes.self) { context in
+        ActivityConfiguration(for: NoBarsActivityAttributes.self) { context in
 
             // Lock screen / StandBy banner
             HStack(spacing: 14) {

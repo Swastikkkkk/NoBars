@@ -8,8 +8,8 @@ import MultipeerConnectivity
 import os
 
 /// Shared logger for the call pipeline. View live with:
-/// `log stream --predicate 'subsystem == "com.swastik.districtmesh"'`
-nonisolated let callLog = Logger(subsystem: "com.swastik.districtmesh", category: "call")
+/// `log stream --predicate 'subsystem == "com.swastik.nobars"'`
+nonisolated let callLog = Logger(subsystem: "com.swastik.nobars", category: "call")
 
 /// Offline voice calls that ride over the same `MCSession` as the mesh.
 ///
@@ -177,7 +177,7 @@ final class MeshVoiceCallManager {
 nonisolated final class AudioBridge: NSObject, StreamDelegate, @unchecked Sendable {
 
     /// Name used for the voice audio stream on the `MCSession`.
-    static let streamName = "district-voice"
+    static let streamName = "nobars-voice"
     private static let maxFrameBytes: UInt32 = 256 * 1024
 
     private let peerID: MCPeerID
@@ -491,7 +491,7 @@ nonisolated final class AudioBridge: NSObject, StreamDelegate, @unchecked Sendab
 nonisolated final class VideoBridge: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, StreamDelegate, @unchecked Sendable {
 
     /// Name used for the video stream on the `MCSession`.
-    static let streamName = "district-video"
+    static let streamName = "nobars-video"
     private static let maxFrameBytes: UInt32 = 2 * 1024 * 1024
 
     private let peerID: MCPeerID?

@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.swastik.districtmesh</string>
+		<string>group.com.swastik.nobars</string>
 	</array>
 </dict>
 </plist>

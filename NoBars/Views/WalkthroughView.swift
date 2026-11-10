@@ -17,7 +17,7 @@ struct WalkthroughView: View {
         Page(icon: "antenna.radiowaves.left.and.right",
              title: "Go Live",
              body: "On the Home tab, tap Go Live. Your phone starts looking for others in your group \u{2014} no internet, no towers, just nearby phones.",
-             tint: DistrictTheme.accent),
+             tint: NoBarsTheme.accent),
         Page(icon: "person.2.fill",
              title: "Find your people",
              body: "Connected buddies appear in the People strip on the Home tab. Tap their chip to call or video-chat \u{2014} all over the mesh, no internet.",
@@ -29,7 +29,7 @@ struct WalkthroughView: View {
         Page(icon: "location.fill",
              title: "Share location & SOS",
              body: "From Home, drop your live location on everyone's map \u{2014} or send an SOS to broadcast your position as urgent if you need help.",
-             tint: DistrictTheme.alert),
+             tint: NoBarsTheme.alert),
         Page(icon: "map.fill",
              title: "See everyone on the map",
              body: "The Map tab plots your crew\u{2019}s live pins as their locations come in \u{2014} red means they\u{2019}re sending an SOS.",
@@ -42,7 +42,7 @@ struct WalkthroughView: View {
 
     var body: some View {
         ZStack {
-            DistrictTheme.immersiveGradient.ignoresSafeArea()
+            NoBarsTheme.immersiveGradient.ignoresSafeArea()
 
             VStack(spacing: 24) {
                 HStack {
@@ -110,9 +110,9 @@ struct WalkthroughView: View {
         } label: {
             Text(index >= pages.count - 1 ? "Start using NoBars" : "Next")
         }
-        .buttonStyle(DistrictButtonStyle(
+        .buttonStyle(NoBarsButtonStyle(
             tint: LinearGradient(colors: [.white], startPoint: .top, endPoint: .bottom),
-            foreground: DistrictTheme.accent
+            foreground: NoBarsTheme.accent
         ))
     }
 }

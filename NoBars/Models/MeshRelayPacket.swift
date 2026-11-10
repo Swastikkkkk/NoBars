@@ -13,6 +13,9 @@ nonisolated struct MeshRelayPacket: Codable, Identifiable, Sendable {
     enum Kind: String, Codable, Sendable {
         case message
         case location
+        /// Sent once to each direct neighbour right after connecting. Proves the
+        /// neighbour knows the group key and pins its signing key. Never relayed.
+        case hello
     }
 
     let id: UUID
@@ -25,6 +28,11 @@ nonisolated struct MeshRelayPacket: Codable, Identifiable, Sendable {
     var latitude: Double?
     var longitude: Double?
     var isEmergency: Bool?
+
+    /// Sender's Curve25519 signing public key and its signature over the packet
+    /// (everything except `ttl`). See `MeshCrypto`.
+    var senderKey: Data?
+    var signature: Data?
 
     static let defaultTTL = 10
 

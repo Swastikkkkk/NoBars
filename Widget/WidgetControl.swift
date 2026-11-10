@@ -4,7 +4,7 @@ import WidgetKit
 
 /// Control Center / Lock Screen / Action button: one tap starts SOS.
 struct WidgetControl: ControlWidget {
-    static let kind = "com.swastik.districtmesh.sos"
+    static let kind = "com.swastik.nobars.sos"
 
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {

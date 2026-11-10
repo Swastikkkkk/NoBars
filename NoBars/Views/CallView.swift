@@ -41,7 +41,7 @@ struct CallView: View {
             .ignoresSafeArea()
         } else {
             ZStack {
-                DistrictTheme.immersiveGradient.ignoresSafeArea()
+                NoBarsTheme.immersiveGradient.ignoresSafeArea()
                 VStack(spacing: 16) {
                     InitialsAvatar(name: voice.activePeer ?? "?", size: 108)
                     Text(connectingText)
@@ -162,7 +162,7 @@ struct CallView: View {
     }
 
     private func fill(engaged: Bool, destructive: Bool) -> Color {
-        if destructive { return DistrictTheme.alert }
+        if destructive { return NoBarsTheme.alert }
         return engaged ? .white : .white.opacity(0.18)
     }
 
