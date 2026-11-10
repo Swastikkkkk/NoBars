@@ -10,6 +10,8 @@ Offline peer-to-peer mesh for iPhone and Android. Phones find each other over Bl
 
 No internet, no cell signal, no server. Built for places where networks fall over: concerts, festivals, treks, disaster zones.
 
+**[Download for Android](https://github.com/Swastikkkkk/NoBars/releases/latest/download/NoBars.apk)** · **[Download for iPhone (IPA)](https://github.com/Swastikkkkk/NoBars/releases/latest/download/NoBars-unsigned.ipa)** · [Website](https://swastikkkkk.github.io/NoBars/) · [How to install](#install)
+
 <p align="center">
   <img src="site/public/shots/onboarding.webp" width="19%" alt="Join a group">
   <img src="site/public/shots/home.webp" width="19%" alt="Mesh home">
@@ -54,7 +56,7 @@ You need **at least two phones**: iPhones on iOS 26 or later, Android phones on 
 
 ### Android
 
-Download `NoBars.apk` from the [latest release](https://github.com/Swastikkkkk/NoBars/releases/latest), open it on the phone and allow installing from your browser when asked. Open NoBars, pick a name and the same group code as your friends, and allow **Nearby devices**, **Location** and **Notifications**. A "NoBars mesh is live" notification means it's running, including with the screen off.
+Download [`NoBars.apk`](https://github.com/Swastikkkkk/NoBars/releases/latest/download/NoBars.apk) (always the latest version), open it on the phone and allow installing from your browser when asked. Open NoBars, pick a name and the same group code as your friends, and allow **Nearby devices**, **Location** and **Notifications**. A "NoBars mesh is live" notification means it's running, including with the screen off.
 
 To build it yourself: `cd android && ./gradlew :app:assembleRelease` (needs JDK 17 and the Android SDK).
 

@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { LuLaptop, LuMonitorSmartphone, LuExternalLink, LuSmartphone } from "react-icons/lu"
+import { LuLaptop, LuMonitorSmartphone, LuExternalLink, LuSmartphone, LuDownload } from "react-icons/lu"
 import { Section } from "@/components/Section"
-import { RELEASES, REPO } from "@/lib/site"
+import { RELEASES, REPO, APK_URL, IPA_URL } from "@/lib/site"
+import { useLatestVersion } from "@/hooks/useLatestVersion"
 import { cn } from "@/lib/utils"
 
 type Step = { title: string; body: React.ReactNode }
@@ -12,14 +13,14 @@ const link = (href: string, t: string) => (
 )
 
 const noMac: Step[] = [
-  { title: "Download the app file", body: <>Download {code("NoBars-unsigned.ipa")} from the {link(RELEASES, "latest release")} on GitHub.</> },
+  { title: "Download the app file", body: <>Download {link(IPA_URL, "NoBars-unsigned.ipa")} (always the latest version).</> },
   { title: "Install Sideloadly", body: <>Get {link("https://sideloadly.io", "Sideloadly")} for Windows or macOS (AltStore works too). Plug in your iPhone with a cable.</> },
   { title: "Sign and install", body: <>Drop the {code(".ipa")} into Sideloadly, sign in with your Apple ID and hit Start. Your Apple ID is only used to sign the app for your own phone.</> },
   { title: "Trust it on your iPhone", body: <>Go to <b className="text-white/80">Settings › General › VPN &amp; Device Management</b> and trust your Apple ID. With a free Apple ID you'll need to reinstall every 7 days.</> },
 ]
 
 const android: Step[] = [
-  { title: "Download the APK", body: <>On your Android phone, download {code("NoBars.apk")} from the {link(RELEASES, "latest release")} on GitHub.</> },
+  { title: "Download the APK", body: <>On your Android phone, tap {link(APK_URL, "NoBars.apk")} to download the latest version.</> },
   { title: "Install it", body: <>Open the file. If Android asks, allow your browser to install unknown apps, then tap Install.</> },
   { title: "Allow access", body: <>Allow <b className="text-white/80">Nearby devices</b>, <b className="text-white/80">Location</b> and <b className="text-white/80">Notifications</b>. A "mesh is live" notification means it's running.</> },
   { title: "Keep it running", body: <>Some phones close background apps. In NoBars' app info, set battery usage to <b className="text-white/80">Unrestricted</b> so it keeps relaying in your pocket.</> },
@@ -57,6 +58,7 @@ function Steps({ steps }: { steps: Step[] }) {
 
 export function Install() {
   const [tab, setTab] = useState<"android" | "pc" | "mac">("android")
+  const version = useLatestVersion()
   return (
     <Section id="install" eyebrow="Install" title="Get it on your phone."
       intro="NoBars isn't in the app stores yet, so you install it yourself. On Android it's one file. On iPhone it takes about ten minutes, and you don't need a Mac.">
@@ -68,6 +70,16 @@ export function Install() {
             <Icon className="h-4 w-4" /> {l}
           </button>
         ))}
+      </div>
+      <div className="reveal mt-6 flex flex-wrap items-center gap-3">
+        <a href={tab === "android" ? APK_URL : IPA_URL}
+          className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[15px] font-semibold text-black transition hover:bg-white/90">
+          <LuDownload className="h-4 w-4" />
+          {tab === "android" ? "Download for Android" : "Download for iPhone"}
+        </a>
+        <a href={RELEASES} target="_blank" rel="noreferrer" className="text-[14px] text-white/50 transition hover:text-white">
+          {version ? `${version} · release notes` : "Release notes"}
+        </a>
       </div>
       <div className="mt-6"><Steps steps={tab === "android" ? android : tab === "pc" ? noMac : mac} /></div>
 
